@@ -1,0 +1,4 @@
+name: market-trend-analyzer
+
+include:
+  - docker/docker-compose.dev.yml
