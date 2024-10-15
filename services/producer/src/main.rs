@@ -3,6 +3,7 @@ use csv::ReaderBuilder;
 use std::error::Error;
 use std::fs::{read_dir, File};
 use tokio::io::AsyncWriteExt;
+use tokio::sync::mpsc::{self, UnboundedSender};
 use tokio::task;
 use tokio::time::{self, Duration};
 
@@ -14,13 +15,12 @@ struct Record {
     trading_time: String,
 }
 
-
 #[derive(Debug)]
 struct ProcessedRecord {
     id: String,
     sec_type: String,
     last: String,
-    trading_date_time: NaiveDateTime
+    trading_date_time: NaiveDateTime,
 }
 
 struct RecordParsingError {
@@ -64,22 +64,18 @@ impl WorkerState {
         })
     }
 
-    async fn block_until_trading_time(
-        &self,
-        record: &ProcessedRecord,
-    ) -> bool {
+    async fn block_until_trading_time(&self, record: &ProcessedRecord) -> bool {
         let current_time = Utc::now().naive_utc() + self.time_offset;
         let time_diff = record.trading_date_time.signed_duration_since(current_time);
-        let time_diff_micros = time_diff.num_microseconds().unwrap_or(time_diff.num_milliseconds() * 1000);
+        let time_diff_millis = time_diff.num_milliseconds();
 
-        if time_diff_micros < 0 {
+        if time_diff_millis < -1 {
             // skip the record
             return false;
         } else {
-            let sleep_duration_micros = time_diff
-                .num_microseconds()
-                .unwrap_or(time_diff.num_milliseconds() * 1000);
-            time::sleep(Duration::from_micros(sleep_duration_micros as u64)).await;
+            if time_diff_millis > 0 {
+                time::sleep(Duration::from_millis(time_diff_millis as u64)).await;
+            }
             return true;
         }
     }
@@ -96,6 +92,7 @@ impl WorkerState {
 async fn process_file(
     file_path: &str,
     time_offset: TimeDelta,
+    tx: UnboundedSender<ProcessedRecord>,
 ) -> Result<(), Box<dyn std::error::Error + Send>> {
     // Open the CSV file
     let file = File::open(&file_path);
@@ -141,7 +138,6 @@ async fn process_file(
             Some(trading_time_index),
         ) => {
             let state = WorkerState::new(time_offset);
-            let mut stdout = tokio::io::stdout();
 
             // Iterate over the records
             for result in reader.records() {
@@ -164,13 +160,8 @@ async fn process_file(
                         };
                         let blocked = state.block_until_trading_time(&processed_record).await;
                         if blocked {
-                            let record_str = format!(
-                                "{:?}\n",
-                                processed_record
-                            );
-                            let res = stdout.write_all(record_str.as_bytes()).await;
-                            if let Err(e) = res {
-                                eprintln!("Error writing record to stdout: {}", e);
+                            if let Err(e) = tx.send(processed_record) {
+                                eprintln!("Error sending record via channel: {}", e);
                             }
                         } else {
                             // Record was skipped
@@ -217,6 +208,10 @@ fn get_csv_files(dir: &str) -> Result<Vec<String>, Box<dyn std::error::Error>> {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
+    // Create a channel for communication between workers and the main process
+    // Unbounded channel is not safe under high load
+    let (tx, mut rx) = mpsc::unbounded_channel();
+
     // List of IDs (or file names) to process
     let csv_files = get_csv_files("data/day-08-11-21")?;
 
@@ -228,13 +223,33 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     println!("Time offset: {:?}", time_offset);
 
-    // Spawn a task for each file
+    // Spawn a task for each file and pass the transmitter `tx` to each worker
     let mut tasks = Vec::new();
     for file_path in csv_files {
+        let tx = tx.clone(); // Clone the transmitter for each task
         tasks.push(task::spawn(async move {
-            process_file(&file_path, time_offset).await
+            process_file(&file_path, time_offset, tx).await
         }));
     }
+
+    // Spawn a task to receive messages and print them as they arrive
+    let print_task = tokio::spawn(async move {
+        let mut stdout = tokio::io::stdout();
+        while let Some(processed_record) = rx.recv().await {
+            let current_time = Utc::now().naive_utc() + time_offset;
+            let time_diff = current_time.signed_duration_since(processed_record.trading_date_time);
+            let record_str = format!(
+                "[T:{}] Delay: {}ms\n",
+                processed_record.trading_date_time,
+                time_diff.num_milliseconds()
+            );
+            stdout
+                .write_all(record_str.as_bytes())
+                .await
+                .expect("Failed to write to stdout");
+            stdout.flush().await.expect("Failed to flush stdout"); // Ensure immediate flush
+        }
+    });
 
     // Wait for all tasks to complete
     for task in tasks {
@@ -243,6 +258,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
             eprintln!("Error processing file: {}", e);
         }
     }
+
+    // Wait for the printing task to complete
+    print_task.await?;
 
     Ok(())
 }
