@@ -1,9 +1,9 @@
+use async_trait::async_trait;
 use chrono::{NaiveDateTime, TimeDelta, Utc};
 use csv::ReaderBuilder;
 use std::error::Error;
 use std::fs::{read_dir, File};
-use tokio::io::AsyncWriteExt;
-use tokio::sync::mpsc::{self, UnboundedSender};
+use tokio::sync::{broadcast, mpsc};
 use tokio::task;
 use tokio::time::{self, Duration};
 
@@ -15,7 +15,7 @@ struct Record {
     trading_time: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct ProcessedRecord {
     id: String,
     sec_type: String,
@@ -80,110 +80,97 @@ impl WorkerState {
         }
     }
 
-    fn finalize(self) {
-        // println!(
-        //     "Finalizing worker for ID {}: processed {} records",
-        //     self.file_path, self.record_count
-        // );
-    }
-}
+    async fn process_file(
+        &self,
+        file_path: &str,
+        tx: mpsc::Sender<ProcessedRecord>,
+    ) -> Result<(), Box<dyn std::error::Error + Send>> {
+        // Open the CSV file
+        let file = File::open(&file_path);
+        let file = match file {
+            Ok(file) => file,
+            Err(e) => {
+                eprintln!("Error opening file {}: {}", file_path, e);
+                return Err(Box::new(e));
+            }
+        };
+        let mut reader = ReaderBuilder::new()
+            .has_headers(true)
+            .flexible(true)
+            .from_reader(file);
 
-// Process a single file associated with a given ID
-async fn process_file(
-    file_path: &str,
-    time_offset: TimeDelta,
-    tx: UnboundedSender<ProcessedRecord>,
-) -> Result<(), Box<dyn std::error::Error + Send>> {
-    // Open the CSV file
-    let file = File::open(&file_path);
-    let file = match file {
-        Ok(file) => file,
-        Err(e) => {
-            eprintln!("Error opening file {}: {}", file_path, e);
-            return Err(Box::new(e));
-        }
-    };
-    let mut reader = ReaderBuilder::new()
-        .has_headers(true)
-        .flexible(true)
-        .from_reader(file);
+        let headers_res = reader.headers();
+        let headers = match headers_res {
+            Ok(headers) => headers,
+            Err(e) => {
+                eprintln!("Error reading headers for file {}: {}", file_path, e);
+                return Err(Box::new(e));
+            }
+        };
+        let id_index = headers.iter().position(|h| h == "ID");
+        let sec_type_index = headers.iter().position(|h| h == "SecType");
+        let last_index = headers.iter().position(|h| h == "Last");
+        let trading_date_index = headers.iter().position(|h| h == "Trading date");
+        let trading_time_index = headers.iter().position(|h| h == "Trading time");
 
-    let headers_res = reader.headers();
-    let headers = match headers_res {
-        Ok(headers) => headers,
-        Err(e) => {
-            eprintln!("Error reading headers for file {}: {}", file_path, e);
-            return Err(Box::new(e));
-        }
-    };
-    let id_index = headers.iter().position(|h| h == "ID");
-    let sec_type_index = headers.iter().position(|h| h == "SecType");
-    let last_index = headers.iter().position(|h| h == "Last");
-    let trading_date_index = headers.iter().position(|h| h == "Trading date");
-    let trading_time_index = headers.iter().position(|h| h == "Trading time");
-
-    // check if all the headers are present
-    match (
-        id_index,
-        sec_type_index,
-        last_index,
-        trading_date_index,
-        trading_time_index,
-    ) {
-        (
-            Some(id_index),
-            Some(sec_type_index),
-            Some(last_index),
-            Some(trading_date_index),
-            Some(trading_time_index),
-        ) => {
-            let state = WorkerState::new(time_offset);
-
-            // Iterate over the records
-            for result in reader.records() {
-                match result {
-                    Ok(record) => {
-                        let record = Record {
-                            id: record[id_index].to_string(),
-                            sec_type: record[sec_type_index].to_string(),
-                            last: record[last_index].to_string(),
-                            trading_date: record[trading_date_index].to_string(),
-                            trading_time: record[trading_time_index].to_string(),
-                        };
-                        let processed_record = state.process_record(record);
-                        let processed_record = match processed_record {
-                            Ok(processed_record) => processed_record,
-                            Err(e) => {
-                                // Skip the record if it cannot be processed
-                                continue;
+        // check if all the headers are present
+        match (
+            id_index,
+            sec_type_index,
+            last_index,
+            trading_date_index,
+            trading_time_index,
+        ) {
+            (
+                Some(id_index),
+                Some(sec_type_index),
+                Some(last_index),
+                Some(trading_date_index),
+                Some(trading_time_index),
+            ) => {
+                for result in reader.records() {
+                    match result {
+                        Ok(record) => {
+                            let record = Record {
+                                id: record[id_index].to_string(),
+                                sec_type: record[sec_type_index].to_string(),
+                                last: record[last_index].to_string(),
+                                trading_date: record[trading_date_index].to_string(),
+                                trading_time: record[trading_time_index].to_string(),
+                            };
+                            let processed_record = self.process_record(record);
+                            let processed_record = match processed_record {
+                                Ok(processed_record) => processed_record,
+                                Err(e) => {
+                                    // Skip the record if it cannot be processed
+                                    continue;
+                                }
+                            };
+                            let blocked = self.block_until_trading_time(&processed_record).await;
+                            if blocked {
+                                if let Err(e) = tx.send(processed_record).await {
+                                    eprintln!("Error sending record via channel: {}", e);
+                                }
+                            } else {
+                                // Record was skipped
                             }
-                        };
-                        let blocked = state.block_until_trading_time(&processed_record).await;
-                        if blocked {
-                            if let Err(e) = tx.send(processed_record) {
-                                eprintln!("Error sending record via channel: {}", e);
-                            }
-                        } else {
-                            // Record was skipped
                         }
-                    }
-                    Err(e) => {
-                        eprintln!("Error reading record from file {}: {}", file_path, e);
+                        Err(e) => {
+                            eprintln!("Error reading record from file {}: {}", file_path, e);
+                        }
                     }
                 }
             }
+            _ => {
+                return Err(Box::new(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    format!("Missing one or more headers in file {}", file_path),
+                )));
+            }
+        }
 
-            state.finalize();
-        }
-        _ => {
-            return Err(Box::new(std::io::Error::new(
-                std::io::ErrorKind::InvalidData,
-                format!("Missing one or more headers in file {}", file_path),
-            )));
-        }
+        Ok(())
     }
-
-    Ok(())
 }
 
 // Function to get the list of IDs from the files in the `data` folder
@@ -206,61 +193,80 @@ fn get_csv_files(dir: &str) -> Result<Vec<String>, Box<dyn std::error::Error>> {
     Ok(files_paths)
 }
 
+#[async_trait]
+trait FinTickSource {
+    async fn subscribe(
+        &self,
+        topic: &str,
+    ) -> Result<mpsc::Receiver<ProcessedRecord>, Box<dyn std::error::Error>>;
+}
+
+struct FinTickSourceImpl {
+    buffer_size: usize,
+}
+
+impl FinTickSourceImpl {
+    fn new(buffer_size: usize) -> FinTickSourceImpl {
+        FinTickSourceImpl { buffer_size }
+    }
+}
+
+#[async_trait]
+impl FinTickSource for FinTickSourceImpl {
+    async fn subscribe(
+        &self,
+        topic: &str,
+    ) -> Result<mpsc::Receiver<ProcessedRecord>, Box<dyn std::error::Error>> {
+        let (tx, rx) = mpsc::channel(self.buffer_size);
+
+        let target_time = NaiveDateTime::parse_from_str(topic, "%d-%m-%Y %H:%M:%S").unwrap();
+
+        let date_str = target_time.date().format("%d-%m-%y").to_string();
+        let csv_folder = format!("data/day-{}", date_str);
+        let csv_files = get_csv_files(&csv_folder)?;
+
+        let time_offset: TimeDelta = target_time.signed_duration_since(Utc::now().naive_utc());
+
+        // Spawn a task for each file and pass the transmitter `tx` to each worker
+        let mut tasks = Vec::new();
+        for file_path in csv_files {
+            let tx = tx.clone(); // Clone the transmitter for each task
+            tasks.push(task::spawn(async move {
+                let worker = WorkerState::new(time_offset);
+                worker.process_file(&file_path, tx).await
+            }));
+        }
+
+        // Drop the main transmitter so that the receiver can exit the loop
+        drop(tx);
+
+        Ok(rx)
+    }
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    // Create a channel for communication between workers and the main process
-    // Unbounded channel is not safe under high load
-    let (tx, mut rx) = mpsc::unbounded_channel();
+    let fin_tick_source = FinTickSourceImpl::new(100);
 
-    // List of IDs (or file names) to process
-    let csv_files = get_csv_files("data/day-08-11-21")?;
+    let topic = "08-11-2021 09:00:00";
+    let mut receiver = fin_tick_source.subscribe(topic).await?;
 
-    // Offset current time to 00:00:00 08-11-2021
-    let current_time = Utc::now().naive_utc();
-    let target_time =
-        NaiveDateTime::parse_from_str("08-11-2021 17:00:00", "%d-%m-%Y %H:%M:%S").unwrap();
-    let time_offset: TimeDelta = target_time.signed_duration_since(current_time);
+    let file = std::fs::File::create("output.csv")?;
+    let mut writer = csv::Writer::from_writer(file);
 
-    println!("Time offset: {:?}", time_offset);
-
-    // Spawn a task for each file and pass the transmitter `tx` to each worker
-    let mut tasks = Vec::new();
-    for file_path in csv_files {
-        let tx = tx.clone(); // Clone the transmitter for each task
-        tasks.push(task::spawn(async move {
-            process_file(&file_path, time_offset, tx).await
-        }));
+    while let Some(record) = receiver.recv().await {
+        let record_str = format!(
+            "{},{},{},{},{}\n",
+            record.id,
+            record.sec_type,
+            record.last,
+            record.trading_date_time.date().format("%d-%m-%Y"),
+            record.trading_date_time.time().format("%H:%M:%S%.f")
+        );
+        writer.write_field(record_str)?;
     }
 
-    // Spawn a task to receive messages and print them as they arrive
-    let print_task = tokio::spawn(async move {
-        let mut stdout = tokio::io::stdout();
-        while let Some(processed_record) = rx.recv().await {
-            let current_time = Utc::now().naive_utc() + time_offset;
-            let time_diff = current_time.signed_duration_since(processed_record.trading_date_time);
-            let record_str = format!(
-                "[T:{}] Delay: {}ms\n",
-                processed_record.trading_date_time,
-                time_diff.num_milliseconds()
-            );
-            stdout
-                .write_all(record_str.as_bytes())
-                .await
-                .expect("Failed to write to stdout");
-            stdout.flush().await.expect("Failed to flush stdout"); // Ensure immediate flush
-        }
-    });
-
-    // Wait for all tasks to complete
-    for task in tasks {
-        let res = task.await?;
-        if let Err(e) = res {
-            eprintln!("Error processing file: {}", e);
-        }
-    }
-
-    // Wait for the printing task to complete
-    print_task.await?;
+    writer.flush()?;
 
     Ok(())
 }
