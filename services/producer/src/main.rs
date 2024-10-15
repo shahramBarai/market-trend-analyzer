@@ -2,9 +2,7 @@ use chrono::{NaiveDateTime, TimeDelta, Utc};
 use csv::ReaderBuilder;
 use std::error::Error;
 use std::fs::{read_dir, File};
-use std::sync::Arc;
-use tokio::io::{AsyncReadExt, AsyncWriteExt, BufWriter};
-use tokio::sync::Mutex;
+use tokio::io::AsyncWriteExt;
 use tokio::task;
 use tokio::time::{self, Duration};
 
@@ -16,32 +14,34 @@ struct Record {
     trading_time: String,
 }
 
+
+#[derive(Debug)]
+struct ProcessedRecord {
+    id: String,
+    sec_type: String,
+    last: String,
+    trading_date_time: NaiveDateTime
+}
+
+struct RecordParsingError {
+    message: String,
+}
+
 // Define a struct to hold the state for each worker
 struct WorkerState {
-    file_path: String,
-    record_count: usize, // Example state: number of records processed
     time_offset: TimeDelta,
 }
 
 impl WorkerState {
-    fn new(file_path: String, time_offset: TimeDelta) -> WorkerState {
-        WorkerState {
-            file_path,
-            record_count: 0,
-            time_offset,
-        }
+    fn new(time_offset: TimeDelta) -> WorkerState {
+        WorkerState { time_offset }
     }
 
-    async fn process_record(
-        &mut self,
-        record: Record,
-        stdout: Arc<Mutex<BufWriter<tokio::io::Stdout>>>,
-    ) {
-        self.record_count += 1;
-
+    fn process_record(&self, record: Record) -> Result<ProcessedRecord, RecordParsingError> {
         if record.trading_date.is_empty() || record.trading_time.is_empty() {
-            // skip the record
-            return;
+            return Err(RecordParsingError {
+                message: "Trading date and time cannot be empty".to_string(),
+            });
         }
 
         let trading_date_time_str = format!("{} {}", record.trading_date, record.trading_time);
@@ -50,39 +50,37 @@ impl WorkerState {
         let trading_date_time = match trading_date_time {
             Ok(trading_date_time) => trading_date_time,
             Err(e) => {
-                eprintln!(
-                    "[{}] Error parsing \"{}\": {}",
-                    self.file_path, trading_date_time_str, e
-                );
-                return;
+                return Err(RecordParsingError {
+                    message: format!("Error parsing trading date and time: {}", e),
+                });
             }
         };
 
+        Ok(ProcessedRecord {
+            id: record.id,
+            sec_type: record.sec_type,
+            last: record.last,
+            trading_date_time,
+        })
+    }
+
+    async fn block_until_trading_time(
+        &self,
+        record: &ProcessedRecord,
+    ) -> bool {
         let current_time = Utc::now().naive_utc() + self.time_offset;
-        let time_diff = trading_date_time.signed_duration_since(current_time);
+        let time_diff = record.trading_date_time.signed_duration_since(current_time);
+        let time_diff_micros = time_diff.num_microseconds().unwrap_or(time_diff.num_milliseconds() * 1000);
 
-        if time_diff.num_seconds() < -1 {
-            if time_diff.num_seconds() > -11 {
-                // skip the record
-                let record_str = format!(
-                    "- [{}] ID: {}, Trading time: {} (skipped)",
-                    self.file_path, record.id, record.trading_time
-                );
-                // let mut stdout = stdout.lock().await;
-                let mut stdout = tokio::io::stdout();
-                stdout.write_all(record_str.as_bytes()).await.unwrap();
-                stdout.write_all(b"\n").await.unwrap();
-            }
+        if time_diff_micros < 0 {
+            // skip the record
+            return false;
         } else {
-            let sleep_duration_micros = time_diff.num_microseconds().unwrap();
+            let sleep_duration_micros = time_diff
+                .num_microseconds()
+                .unwrap_or(time_diff.num_milliseconds() * 1000);
             time::sleep(Duration::from_micros(sleep_duration_micros as u64)).await;
-
-            // print the record
-            let record_str = format!("+ Trading time: {}", record.trading_time);
-            // let mut stdout = stdout.lock().await;
-            let mut stdout = tokio::io::stdout();
-            stdout.write_all(record_str.as_bytes()).await.unwrap();
-            stdout.write_all(b"\n").await.unwrap();
+            return true;
         }
     }
 
@@ -98,7 +96,6 @@ impl WorkerState {
 async fn process_file(
     file_path: &str,
     time_offset: TimeDelta,
-    stdout: Arc<Mutex<BufWriter<tokio::io::Stdout>>>,
 ) -> Result<(), Box<dyn std::error::Error + Send>> {
     // Open the CSV file
     let file = File::open(&file_path);
@@ -143,7 +140,8 @@ async fn process_file(
             Some(trading_date_index),
             Some(trading_time_index),
         ) => {
-            let mut state = WorkerState::new(file_path.to_string(), time_offset);
+            let state = WorkerState::new(time_offset);
+            let mut stdout = tokio::io::stdout();
 
             // Iterate over the records
             for result in reader.records() {
@@ -156,13 +154,32 @@ async fn process_file(
                             trading_date: record[trading_date_index].to_string(),
                             trading_time: record[trading_time_index].to_string(),
                         };
-                        state.process_record(record, stdout.clone()).await;
+                        let processed_record = state.process_record(record);
+                        let processed_record = match processed_record {
+                            Ok(processed_record) => processed_record,
+                            Err(e) => {
+                                // Skip the record if it cannot be processed
+                                continue;
+                            }
+                        };
+                        let blocked = state.block_until_trading_time(&processed_record).await;
+                        if blocked {
+                            let record_str = format!(
+                                "{:?}\n",
+                                processed_record
+                            );
+                            let res = stdout.write_all(record_str.as_bytes()).await;
+                            if let Err(e) = res {
+                                eprintln!("Error writing record to stdout: {}", e);
+                            }
+                        } else {
+                            // Record was skipped
+                        }
                     }
-                    Err(e) => {}
+                    Err(e) => {
+                        eprintln!("Error reading record from file {}: {}", file_path, e);
+                    }
                 }
-                // if (stdout.lock().await).buffer().len() > 0 {
-                //     (stdout.lock().await).flush().await.unwrap();
-                // }
             }
 
             state.finalize();
@@ -211,14 +228,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     println!("Time offset: {:?}", time_offset);
 
-    let stdout = Arc::new(Mutex::new(BufWriter::new(tokio::io::stdout())));
-
     // Spawn a task for each file
     let mut tasks = Vec::new();
     for file_path in csv_files {
-        let stdout = Arc::clone(&stdout);
         tasks.push(task::spawn(async move {
-            process_file(&file_path, time_offset, stdout).await
+            process_file(&file_path, time_offset).await
         }));
     }
 
