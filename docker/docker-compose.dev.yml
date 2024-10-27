@@ -27,3 +27,13 @@ services:
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
     depends_on:
       - kafka
+
+  quarto:
+    image: quarto
+    build:
+      context: ../report
+      dockerfile: Dockerfile
+    ports:
+      - '4200:4200'
+    volumes:
+      - ../report/src:/report/
