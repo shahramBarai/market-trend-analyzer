@@ -29,11 +29,13 @@ services:
       - kafka
 
   quarto:
-    image: quarto
+    image: quart
     build:
       context: ../report
       dockerfile: Dockerfile
     ports:
-      - '4200:4200'
+      - '127.0.0.1:4200:4200'
     volumes:
-      - ../report/src:/report/
+      - ../report/bibliography.bib:/report/bibliography.bib
+      - ../report/index.qmd:/report/index.qmd
+      - ../report/header.tex:/report/header.tex
