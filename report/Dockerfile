@@ -2,7 +2,14 @@ FROM debian:bookworm-20241016
 WORKDIR /report
 
 RUN apt-get update \ 
-  && apt-get -y install libfontconfig1-dev perl
+  && apt-get -y install libfontconfig1-dev perl \
+  python3 python3-pip python3-dev python3-venv
+
+RUN python3 -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+RUN pip install --upgrade pip
+RUN pip3 install jupyter numpy pandas matplotlib
 
 ENV QUARTO_VERSION=1.6.30
 

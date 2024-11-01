@@ -99,6 +99,16 @@ Describe the design choices and motivations in detail
 
 Explain how the project was implemented, including the hardware/cloud services, programming tools,and GUI tools used
 
+```{python}
+#| echo: false
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Plot a generic plot
+plt.plot(np.random.randn(1000).cumsum())
+```
+
 # Performance Evaluation
 
 Assess the system’s performance, including its correctness (e.g., whether query results are accurate), scalability (how the system performs with varying resources, such as CPU, or workloads, such as events per second), and resource utilization (e.g., GPU and CPU usage).
