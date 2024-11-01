@@ -76,13 +76,6 @@ acm-metadata:
     - financial data
     - decision support
     - system performance
-  
-  # if uncommented, this produces a teaser figure
-  # 
-  # teaser:
-  #   image: sampleteaser
-  #   caption: figure caption
-  #   description: teaser description
 
 abstract: |
   This is a course project report for the course "CS-E4780 - Scalable Systems and Data Management D" at Aalto University. The project addresses the analysis of financial tick data to detect trading trends by implementing a system capable of identifying price movement patterns for individual symbols and generating actionable buy/sell advisories. Using a real-world dataset comprising one week of high-frequency market events across multiple European exchanges, two primary analyses were conducted: (1) calculating Exponential Moving Averages (EMAs) over fixed time windows to detect short-term price trends and (2) identifying bullish and bearish breakout patterns to generate buy and sell advisories, respectively. The developed system also includes a visualization component to highlight detected patterns, enhancing trader decision-making capabilities. Evaluation focuses on performance, scalability, and accuracy in processing high-volume event streams.
