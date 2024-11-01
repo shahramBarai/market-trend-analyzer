@@ -18,6 +18,9 @@ RUN apt-get -y install wget ca-certificates \
 RUN quarto install tinytex --update-path
 RUN quarto add --no-prompt quarto-journals/acm
 
+# Add author notes support to ACM template
+RUN sed '/\\author{.*}/a \$if(by-author.note.text)$\\authornote{$by-author.note.text$}$endif$' -i _extensions/quarto-journals/acm/partials/_acmart_authors.tex
+
 EXPOSE 4200
 
 # Loop to keep container running

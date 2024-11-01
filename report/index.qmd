@@ -13,6 +13,7 @@ title: Market Trend Analyzer
 
 author:
   - name: Yerzhan Zhamashev
+    note: Both authors contributed equally to this work.
     email: yerzhan.zhamashev@aalto.fi
     affiliation:
       name: Aalto University
@@ -45,20 +46,36 @@ acm-metadata:
   # Please copy and paste the code instead of the example below.
   ccs: |
     \begin{CCSXML}
-      <ccs2012>
+    <ccs2012>
       <concept>
-      <concept_id>10002951.10003227.10010926</concept_id>
-      <concept_desc>Information systems~Computing platforms</concept_desc>
-      <concept_significance>300</concept_significance>
+        <concept_id>10002951.10002952</concept_id>
+        <concept_desc>Information systems~Data management systems</concept_desc>
+        <concept_significance>500</concept_significance>
+        </concept>
+      <concept>
+        <concept_id>10011007.10011074</concept_id>
+        <concept_desc>Software and its engineering~Software creation and management</concept_desc>
+        <concept_significance>300</concept_significance>
+        </concept>
+      <concept>
+        <concept_id>10010405.10010406</concept_id>
+        <concept_desc>Applied computing~Enterprise computing</concept_desc>
+        <concept_significance>300</concept_significance>
       </concept>
-      </ccs2012>
+    </ccs2012>
     \end{CCSXML}
-    \ccsdesc[300]{Information systems~Computing platforms}
+
+    \ccsdesc[500]{Information systems~Data management systems}
+    \ccsdesc[300]{Software and its engineering~Software creation and management}
+    \ccsdesc[300]{Applied computing~Enterprise computing}
 
   keywords:
-    - finance
-    - analysis
-    - trading
+    - data analysis
+    - data visualization
+    - real-time data
+    - financial data
+    - decision support
+    - system performance
   
   # if uncommented, this produces a teaser figure
   # 
@@ -68,9 +85,33 @@ acm-metadata:
   #   description: teaser description
 
 abstract: |
-  This is a report on the Market Trend Analyzer project. The project aims to analyze the market trends and provide insights to the users. The project is developed by Yerzhan Zhamashev and Shahram Barai.
+  This is a course project report for the course "CS-E4780 - Scalable Systems and Data Management D" at Aalto University. The project addresses the analysis of financial tick data to detect trading trends by implementing a system capable of identifying price movement patterns for individual symbols and generating actionable buy/sell advisories. Using a real-world dataset comprising one week of high-frequency market events across multiple European exchanges, two primary analyses were conducted: (1) calculating Exponential Moving Averages (EMAs) over fixed time windows to detect short-term price trends and (2) identifying bullish and bearish breakout patterns to generate buy and sell advisories, respectively. The developed system also includes a visualization component to highlight detected patterns, enhancing trader decision-making capabilities. Evaluation focuses on performance, scalability, and accuracy in processing high-volume event streams.
 ---
 
-## Introduction
+# Introduction
 
-This is a report on the Market Trend Analyzer project. The project aims to analyze the market trends and provide insights to the users. The project is developed by Yerzhan Zhamashev and Shahram Barai.
+Provide a brief background and overview of the project.
+
+## Data Set
+
+The data used for this course project are based on a week’s worth of real tick data captured by Infront Financial Technology GmbH in 2021. The full data set Trading Data used for the project is publicly available from @frischbier_2022_6382482 licensed under an open license[^1].
+
+[^1]: [http://creativecommons.org/licenses/by-nc-sa/4.0/](http://creativecommons.org/licenses/by-nc-sa/4.0/)
+
+# System Architecture
+
+Describe the design choices and motivations in detail
+
+# Implementation
+
+Explain how the project was implemented, including the hardware/cloud services, programming tools,and GUI tools used
+
+# Performance Evaluation
+
+Assess the system’s performance, including its correctness (e.g., whether query results are accurate), scalability (how the system performs with varying resources, such as CPU, or workloads, such as events per second), and resource utilization (e.g., GPU and CPU usage).
+
+# Conclusion
+
+Summarize the project and its contributions, and discuss potential future work.
+
+# References
