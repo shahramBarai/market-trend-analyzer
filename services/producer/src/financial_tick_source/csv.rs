@@ -2,13 +2,17 @@ use crate::financial_tick_source::{FinTickSource, Message};
 use async_trait::async_trait;
 use chrono::{NaiveDateTime, TimeDelta, Utc};
 use csv::ReaderBuilder;
+use std::sync::Arc;
 use std::{
     error::Error,
     fs::{read_dir, File},
     time::Duration,
 };
-use tokio::task;
-use tokio::{sync::mpsc, time};
+
+use tokio::{
+    sync::{mpsc, Barrier},
+    task, time,
+};
 
 struct Record {
     id: String,
@@ -24,11 +28,15 @@ struct RecordParsingError {
 
 struct TradingFileProcessor {
     time_offset: TimeDelta,
+    barrier_c: Arc<Barrier>,
 }
 
 impl TradingFileProcessor {
-    fn new(time_offset: TimeDelta) -> TradingFileProcessor {
-        TradingFileProcessor { time_offset }
+    fn new(time_offset: TimeDelta, barrier_c: Arc<Barrier>) -> TradingFileProcessor {
+        TradingFileProcessor {
+            time_offset,
+            barrier_c,
+        }
     }
 
     fn process_record(&self, record: Record) -> Result<Message, RecordParsingError> {
@@ -58,18 +66,16 @@ impl TradingFileProcessor {
         })
     }
 
-    async fn block_until_trading_time(&mut self, record: &Message) -> bool {
+    fn calculate_time_diff(&self, record: &Message) -> i64 {
         let current_time = Utc::now().naive_utc() + self.time_offset;
         let time_diff = record.trading_date_time.signed_duration_since(current_time);
-        let time_diff_millis = time_diff.num_milliseconds();
+        time_diff.num_milliseconds()
+    }
 
-        if time_diff_millis < -1000 {
-            return false;
-        } else {
-            if time_diff_millis > 0 {
-                time::sleep(Duration::from_millis(time_diff_millis as u64)).await;
-            }
-            return true;
+    async fn block_until_trading_time(&mut self, record: &Message) {
+        let time_diff_millis = self.calculate_time_diff(record);
+        if time_diff_millis > 0 {
+            time::sleep(Duration::from_millis(time_diff_millis as u64)).await;
         }
     }
 
@@ -121,6 +127,7 @@ impl TradingFileProcessor {
                 Some(trading_date_index),
                 Some(trading_time_index),
             ) => {
+                // Step 1: Preprocess the records - skip the records that are in the past
                 for result in reader.records() {
                     match result {
                         Ok(record) => {
@@ -139,15 +146,51 @@ impl TradingFileProcessor {
                                     continue;
                                 }
                             };
-                            let blocked = self.block_until_trading_time(&processed_record).await;
-                            if blocked {
-                                if let Err(e) = tx.send(Some(processed_record)).await {
-                                    eprintln!("Error sending record via channel: {}", e);
+
+                            // Stop preprocessing if the trading date time is more than 1 second in the future
+                            if self.calculate_time_diff(&processed_record) > -1000 {
+                                break;
+                            }
+                        }
+                        Err(e) => {
+                            eprintln!("Error reading record from file {}: {}", file_path, e);
+                        }
+                    }
+                }
+
+                // Step 2: Synvhronize the processing time with given start time
+                println!("Synchronizing with trading time for file {}", file_path);
+                self.barrier_c.wait().await;
+                println!("Passed barrier for file {}", file_path);
+
+                // Step 3: Process the records - send the records that are in the future
+                for result in reader.records() {
+                    match result {
+                        Ok(record) => {
+                            let record = Record {
+                                id: record[id_index].to_string(),
+                                sec_type: record[sec_type_index].to_string(),
+                                last: record[last_index].to_string(),
+                                trading_date: record[trading_date_index].to_string(),
+                                trading_time: record[trading_time_index].to_string(),
+                            };
+                            let processed_record = self.process_record(record);
+                            let processed_record = match processed_record {
+                                Ok(processed_record) => processed_record,
+                                Err(_) => {
+                                    // Skip the record if it cannot be processed
+                                    continue;
                                 }
-                            } else {
-                                if let Err(e) = tx.send(None).await {
-                                    eprintln!("Error sending record via channel: {}", e);
-                                }
+                            };
+
+                            // Skip the record if the trading date time is in the past
+                            if self.calculate_time_diff(&processed_record) < 0 {
+                                continue;
+                            }
+
+                            self.block_until_trading_time(&processed_record).await;
+                            if let Err(e) = tx.send(Some(processed_record)).await {
+                                eprintln!("Error sending record via channel: {}", e);
                             }
                         }
                         Err(e) => {
@@ -157,6 +200,7 @@ impl TradingFileProcessor {
                 }
             }
             _ => {
+                self.barrier_c.wait().await;
                 return Err(Box::new(std::io::Error::new(
                     std::io::ErrorKind::InvalidData,
                     format!("Missing one or more headers in file {}", file_path),
@@ -217,14 +261,16 @@ impl FinTickSource for CSVSource {
         let date_str = target_time.date().format("%d-%m-%y").to_string();
         let csv_folder = format!("data/day-{}", date_str);
         let csv_files = get_csv_files(&csv_folder)?;
+        let files_count = csv_files.len();
 
         let time_offset: TimeDelta = target_time.signed_duration_since(Utc::now().naive_utc());
         self.time_offset = time_offset;
-
+        let barrier = Arc::new(Barrier::new(files_count));
         let mut tasks = Vec::new();
         for file_path in csv_files {
             let tx = tx.clone();
-            let mut worker = TradingFileProcessor::new(time_offset);
+            let barrier_clone = barrier.clone();
+            let mut worker = TradingFileProcessor::new(time_offset, barrier_clone);
             tasks.push(task::spawn(async move {
                 worker.process_file(&file_path, tx).await
             }));
