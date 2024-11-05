@@ -1,27 +1,28 @@
-FROM debian:bookworm-20241016
+FROM python:3.11-slim
 WORKDIR /report
 
-RUN apt-get update \ 
-  && apt-get -y install libfontconfig1-dev perl \
-  python3 python3-pip python3-dev python3-venv
+# Install necessary packages for Quarto and other dependencies + cleanup
+RUN apt-get update && \
+  apt-get -y install libfontconfig1-dev perl wget ca-certificates && \
+  apt-get clean && \
+  apt-get autoremove -y && \
+  apt-get autoclean -y && \
+  rm -rf /var/lib/apt/lists/* && \
+  rm -rf /tmp/*
 
-RUN python3 -m venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
-
-RUN pip install --upgrade pip
-RUN pip3 install jupyter numpy pandas matplotlib
+# Copy requirements.txt file and install Python dependencies
+COPY requirements.txt requirements.txt
+RUN pip install --upgrade pip && \
+  pip install -r requirements.txt
 
 ENV QUARTO_VERSION=1.6.30
 
-RUN apt-get -y install wget ca-certificates \
-  && wget "https://github.com/quarto-dev/quarto-cli/releases/download/v${QUARTO_VERSION}/quarto-${QUARTO_VERSION}-linux-amd64.deb" -O quarto.deb \
-  && dpkg -i quarto.deb \
-  && rm quarto.deb \
-  && apt-get autoremove -y \
-  && apt-get autoclean -y \
-  && rm -rf /var/lib/apt/lists/* \
-  && rm -rf /tmp/*
+# Install Quarto CLI
+RUN wget "https://github.com/quarto-dev/quarto-cli/releases/download/v${QUARTO_VERSION}/quarto-${QUARTO_VERSION}-linux-amd64.deb" -O quarto.deb && \
+  dpkg -i quarto.deb && \
+  rm quarto.deb
 
+# Install TinyTeX for LaTeX support
 RUN quarto install tinytex --update-path
 RUN quarto add --no-prompt quarto-journals/acm
 
