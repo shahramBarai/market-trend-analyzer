@@ -1,6 +1,19 @@
 version: '3'
 
 services:
+  # ------ Quarto for report generation ------- #
+  quarto:
+    image: quarto
+    build:
+      context: ../report
+      dockerfile: Dockerfile
+    ports:
+      - '127.0.0.1:4200:4200'
+    volumes:
+      - ../report/bibliography.bib:/report/bibliography.bib
+      - ../report/index.qmd:/report/index.qmd
+      - ../report/header.tex:/report/header.tex
+
   # ------ Kafka ------- #
   kafka:
     image: 'bitnami/kafka:latest'
@@ -16,7 +29,10 @@ services:
       - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT,PLAINTEXT:PLAINTEXT
       - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=0@kafka:9093
       - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+    volumes:
+      - ./configs/kafka:/configs
 
+  # ------ Kafka UI ------- #
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
     container_name: kafka-ui
@@ -28,14 +44,27 @@ services:
     depends_on:
       - kafka
 
-  quarto:
-    image: quart
-    build:
-      context: ../report
-      dockerfile: Dockerfile
+  # ------ Flink Job Manager ------- #
+  flink-jobmanager:
+    image: flink:latest
+    container_name: flink-jobmanager
     ports:
-      - '127.0.0.1:4200:4200'
+      - '8081:8081'  # Flink Web UI
+    environment:
+      - JOB_MANAGER_RPC_ADDRESS=flink-jobmanager
     volumes:
-      - ../report/bibliography.bib:/report/bibliography.bib
-      - ../report/index.qmd:/report/index.qmd
-      - ../report/header.tex:/report/header.tex
+      - ../services/analytics/flink_market_analytics:/opt/flink/usrlib
+    command: jobmanager
+
+  # ------ Flink Task Manager ------- #
+  flink-taskmanager:
+    image: flink:latest
+    container_name: flink-taskmanager
+    environment:
+      - JOB_MANAGER_RPC_ADDRESS=flink-jobmanager
+      - FLINK_TM_NUM_TASK_SLOTS=4  # Increase the number of task slots
+    depends_on:
+      - flink-jobmanager
+    volumes:
+      - ../services/analytics/flink_market_analytics:/opt/flink/usrlib
+    command: taskmanager
