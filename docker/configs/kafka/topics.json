@@ -1,0 +1,33 @@
+[
+    {
+        "name": "ETR",
+        "partitions": 10,
+        "replicationFactor": 1
+    },
+    {
+        "name": "FR",
+        "partitions": 10,
+        "replicationFactor": 1
+    },
+    {
+        "name": "NL",
+        "partitions": 10,
+        "replicationFactor": 1
+    },
+    {
+        "name": "ETR-analytics",
+        "partitions": 10,
+        "replicationFactor": 1
+    },
+    {
+        "name": "FR-analytics",
+        "partitions": 10,
+        "replicationFactor": 1
+    },
+    {
+        "name": "NL-analytics",
+        "partitions": 10,
+        "replicationFactor": 1
+    }
+]
+  
