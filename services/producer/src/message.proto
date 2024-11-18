@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package mypackage;
+
+message FinancialTick {
+    string id = 1;
+    string sec_type = 2;
+    string last = 3;
+    string trading_date_time = 4;
+}

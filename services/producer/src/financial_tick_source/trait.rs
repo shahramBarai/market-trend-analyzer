@@ -13,5 +13,8 @@ pub struct Message {
 
 #[async_trait]
 pub trait FinTickSource {
-    async fn subscribe(&mut self, topic: &str) -> Result<mpsc::Receiver<Option<Message>>, Box<dyn Error>>;
+    async fn subscribe(
+        &mut self,
+        topic: &str,
+    ) -> Result<mpsc::Receiver<Option<Message>>, Box<dyn Error>>;
 }

@@ -148,7 +148,7 @@ impl TradingFileProcessor {
                             };
 
                             // Stop preprocessing if the trading date time is more than 1 second in the future
-                            if self.calculate_time_diff(&processed_record) > -1000 {
+                            if self.calculate_time_diff(&processed_record) > 0 {
                                 break;
                             }
                         }
@@ -159,9 +159,11 @@ impl TradingFileProcessor {
                 }
 
                 // Step 2: Synvhronize the processing time with given start time
-                println!("Synchronizing with trading time for file {}", file_path);
-                self.barrier_c.wait().await;
-                println!("Passed barrier for file {}", file_path);
+                // println!("Reached trading time for file {}", file_path);
+                let res = self.barrier_c.wait().await;
+                if res.is_leader() {
+                    println!("All files have reached trading time");
+                }
 
                 // Step 3: Process the records - send the records that are in the future
                 for result in reader.records() {
@@ -184,9 +186,13 @@ impl TradingFileProcessor {
                             };
 
                             // Skip the record if the trading date time is in the past
-                            if self.calculate_time_diff(&processed_record) < 0 {
-                                continue;
-                            }
+                            // if self.calculate_time_diff(&processed_record) < 0 {
+                            //     let res = tx.send(None).await;
+                            //     if let Err(e) = res {
+                            //         eprintln!("Error sending record via channel: {}", e);
+                            //     }
+                            //     continue;
+                            // }
 
                             self.block_until_trading_time(&processed_record).await;
                             if let Err(e) = tx.send(Some(processed_record)).await {
@@ -244,7 +250,7 @@ impl CSVSource {
         }
     }
 
-    pub fn get_time_offset(&self) -> TimeDelta {
+    pub fn csv_get_time_offset(&self) -> TimeDelta {
         self.time_offset
     }
 }
@@ -262,6 +268,7 @@ impl FinTickSource for CSVSource {
         let csv_folder = format!("data/day-{}", date_str);
         let csv_files = get_csv_files(&csv_folder)?;
         let files_count = csv_files.len();
+        println!("Found {} CSV files", files_count);
 
         let time_offset: TimeDelta = target_time.signed_duration_since(Utc::now().naive_utc());
         self.time_offset = time_offset;

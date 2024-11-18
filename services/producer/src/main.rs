@@ -13,13 +13,11 @@ use rdkafka::producer::{FutureProducer, FutureRecord};
 use rdkafka::Message as KafkaMessage;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug)]
-struct JsonMessage{
-    id: String,
-    sec_type: String,
-    last: String,
-    trading_date_time: String,
+mod mypackage {
+    include!(concat!(env!("OUT_DIR"), "/mypackage.rs"));
 }
+use mypackage::FinancialTick;
+use prost::Message as ProtoMassage;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -27,13 +25,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let topic = "08-11-2021 17:00:00";
     let mut receiver = fin_tick_source.subscribe(topic).await?;
-    let time_offset = fin_tick_source.get_time_offset();
+    let time_offset = fin_tick_source.csv_get_time_offset();
 
     let mut skipped = 0;
 
-    let mut producer = ClientConfig::new()
+    let producer = ClientConfig::new()
         .set("bootstrap.servers", "localhost:9094")
         .set("message.timeout.ms", "5000")
+        .set("compression.type", "snappy")
         .create::<FutureProducer>()?;
 
     while let Some(record) = receiver.recv().await {
@@ -44,27 +43,40 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 continue;
             }
         };
+
         let current_time = Utc::now().naive_utc() + time_offset;
         let delay = current_time.signed_duration_since(record.trading_date_time);
 
-        let json_message = JsonMessage {
+        let protobuf_message = FinancialTick {
             id: record.id,
             sec_type: record.sec_type,
             last: record.last,
             trading_date_time: record.trading_date_time.to_string(),
         };
 
-        let json_message_str = serde_json::to_string(&json_message)?;
+        let mut buf = Vec::new();
+        protobuf_message.encode(&mut buf)?; // Serialize to bytes
+
+        // Split `record.id` into `share_name` and `region`
+        let parts: Vec<&str> = protobuf_message.id.split('.').collect();
+        //let share_name = parts[0];
+        let region = parts[1];
 
         let produce_future = producer.send(
-            FutureRecord::to("financial_ticks")
-                .key(&json_message.id)
-                .payload(&json_message_str),
+            FutureRecord::to(&region)
+                .key(&protobuf_message.id)
+                .payload(&buf),
             Duration::from_secs(0),
         );
 
         match produce_future.await {
-            Ok(delivery) => println!("Sent [t:{}, d:{}ms, s:{}]: {:?}", record.trading_date_time, delay.num_milliseconds(), skipped, delivery),
+            Ok(delivery) => println!(
+                "Sent [t:{}, d:{}ms, s:{}]: {:?}",
+                record.trading_date_time,
+                delay.num_milliseconds(),
+                skipped,
+                delivery
+            ),
             Err((e, _)) => println!("Error: {:?}", e),
         }
     }
