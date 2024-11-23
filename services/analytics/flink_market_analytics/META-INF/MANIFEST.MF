@@ -1,0 +1,10 @@
+Manifest-Version: 1.0
+Specification-Title: flink_market_analytics
+Specification-Version: 0.1
+Specification-Vendor: default
+Implementation-Title: flink_market_analytics
+Implementation-Version: 0.1
+Implementation-Vendor: default
+Implementation-Vendor-Id: default
+Main-Class: ScalableMarketAnalytics
+
