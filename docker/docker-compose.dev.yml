@@ -46,19 +46,23 @@ services:
 
   # ------ Flink Job Manager ------- #
   flink-jobmanager:
-    image: flink:latest
+    build:
+      context: ..
+      dockerfile: ./docker/dockerfiles/flink/Dockerfile
     container_name: flink-jobmanager
     ports:
       - '8081:8081'  # Flink Web UI
     environment:
       - JOB_MANAGER_RPC_ADDRESS=flink-jobmanager
     volumes:
-      - ../services/analytics/flink_market_analytics:/opt/flink/usrlib
+      - ../services/flink-python-analytics:/opt/flink/usrlib
     command: jobmanager
 
   # ------ Flink Task Manager ------- #
   flink-taskmanager:
-    image: flink:latest
+    build:
+      context: ..
+      dockerfile: ./docker/dockerfiles/flink/Dockerfile
     container_name: flink-taskmanager
     environment:
       - JOB_MANAGER_RPC_ADDRESS=flink-jobmanager
@@ -66,5 +70,5 @@ services:
     depends_on:
       - flink-jobmanager
     volumes:
-      - ../services/analytics/flink_market_analytics:/opt/flink/usrlib
+      - ../services/flink-python-analytics:/opt/flink/usrlib
     command: taskmanager
