@@ -9,41 +9,26 @@ import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.util.Collector
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import mypackage.{FinancialTick, AnalyticsResult} // Import generated Protobuf classes
+import mypackage.message.{FinancialTick, AnalyticsResult}
+import org.apache.flink.api.scala.createTypeInformation
 
 object RegionalMarketAnalytics {
-
-  case class FinancialTickData(symbol: String, price: Double, volume: Int, timestamp: Long)
-  case class AnalyticsResultData(symbol: String, avgPrice: Double, totalVolume: Int, windowEnd: Long)
-
   // Custom Protobuf deserializer for Kafka
-  class ProtobufDeserializer extends DeserializationSchema[FinancialTickData] {
-    override def deserialize(message: Array[Byte]): FinancialTickData = {
-      val financialTick = FinancialTick.parseFrom(message)
-      FinancialTickData(
-        financialTick.symbol,
-        financialTick.price,
-        financialTick.volume,
-        financialTick.timestamp
-      )
+  class ProtobufDeserializer extends DeserializationSchema[FinancialTick] {
+    override def deserialize(message: Array[Byte]): FinancialTick = {
+      FinancialTick.parseFrom(message)
     }
 
-    override def isEndOfStream(nextElement: FinancialTickData): Boolean = false
+    override def isEndOfStream(nextElement: FinancialTick): Boolean = false
 
-    override def getProducedType: TypeInformation[FinancialTickData] = 
-      TypeInformation.of(classOf[FinancialTickData])
+    override def getProducedType: TypeInformation[FinancialTick] = 
+      TypeInformation.of(classOf[FinancialTick])
   }
 
   // Custom Protobuf serializer for Kafka
-  class ProtobufSerializer extends SerializationSchema[AnalyticsResultData] {
-    override def serialize(element: AnalyticsResultData): Array[Byte] = {
-      val result = AnalyticsResult.newBuilder()
-        .setSymbol(element.symbol)
-        .setAvgPrice(element.avgPrice)
-        .setTotalVolume(element.totalVolume)
-        .setWindowEnd(element.windowEnd)
-        .build()
-      result.toByteArray
+  class ProtobufSerializer extends SerializationSchema[AnalyticsResult] {
+    override def serialize(element: AnalyticsResult): Array[Byte] = {
+      element.toByteArray
     }
   }
 
@@ -59,7 +44,7 @@ object RegionalMarketAnalytics {
     kafkaConsumerProps.put("compression.type", "snappy") // Enable Snappy compression
 
     // Create Kafka consumer with Protobuf deserializer
-    val kafkaConsumer = new FlinkKafkaConsumer[FinancialTickData](
+    val kafkaConsumer = new FlinkKafkaConsumer[FinancialTick](
       inputTopic,
       new ProtobufDeserializer(),
       kafkaConsumerProps
@@ -68,15 +53,16 @@ object RegionalMarketAnalytics {
     // Parse Market Tick Data
     val FinancialTickStream = env
       .addSource(kafkaConsumer)
-      .keyBy(_.symbol)
+      .keyBy(_.id)
 
     // Perform analytics in 1-minute tumbling windows
     val analyticsStream = FinancialTickStream
       .timeWindow(Time.minutes(1))
-      .apply { (key, window, input, out: Collector[AnalyticsResultData]) =>
-        val totalVolume = input.map(_.volume).sum
-        val avgPrice = input.map(_.price).sum / input.size
-        out.collect(AnalyticsResultData(key, avgPrice, totalVolume, window.getEnd))
+      .apply { (key, window, input, out: Collector[AnalyticsResult]) =>
+        // convert .last to a double and sum all prices
+        val totalVolume = input.map(_.last).map(_.toDouble).sum
+        val avgPrice = totalVolume / input.size
+        out.collect(AnalyticsResult(key, avgPrice.toString, totalVolume.toString, window.getEnd.toString))
       }
 
     // Kafka producer properties
@@ -85,7 +71,7 @@ object RegionalMarketAnalytics {
     kafkaProducerProps.put("compression.type", "snappy") // Enable Snappy compression
 
     // Create Kafka producer with Protobuf serializer
-    val kafkaProducer = new FlinkKafkaProducer[AnalyticsResultData](
+    val kafkaProducer = new FlinkKafkaProducer[AnalyticsResult](
       outputTopic,
       new ProtobufSerializer(),
       kafkaProducerProps
