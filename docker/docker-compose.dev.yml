@@ -13,6 +13,8 @@ services:
       - ../report/bibliography.bib:/report/bibliography.bib
       - ../report/index.qmd:/report/index.qmd
       - ../report/header.tex:/report/header.tex
+    profiles:
+        - report
 
   # ------ Kafka ------- #
   kafka:
