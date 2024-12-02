@@ -1,11 +1,12 @@
+from pyflink.datastream.execution_mode import RuntimeExecutionMode
 from pyflink.datastream import StreamExecutionEnvironment, TimeCharacteristic
-from pyflink.datastream.window import TimeWindow
-from pyflink.datastream.connectors import KafkaSource, KafkaSink
+from pyflink.datastream.window import TumblingEventTimeWindows, TimeWindow
+from pyflink.datastream.connectors.kafka import KafkaSource, KafkaSink
 from pyflink.common.serialization import SerializationSchema, DeserializationSchema
+from pyflink.common.time import Time
 from pyflink.common.typeinfo import TypeInformation
 from pyflink.common.watermark_strategy import WatermarkStrategy
 import json
-import struct
 
 # Custom Protobuf-like Deserialization Schema
 class ProtobufDeserializer(DeserializationSchema):
@@ -43,25 +44,23 @@ def create_job(region: str, input_topic: str, output_topic: str, parallelism: in
     # Create execution environment
     env = StreamExecutionEnvironment.get_execution_environment()
     env.set_parallelism(parallelism)
+    env.set_runtime_mode(RuntimeExecutionMode.STREAMING)
     env.set_stream_time_characteristic(TimeCharacteristic.EventTime)
 
-    # Kafka consumer properties
-    kafka_consumer_props = {
-        "bootstrap.servers": "localhost:9092",
-        "group.id": f"flink-market-analytics-{region}",
-        "compression.type": "snappy"
-    }
+    # Adding the jar to my streming environment.
+    env.add_jars("file:////opt/flink/userlib/flink-sql-connector-kafka-3.2.0-1.18.jar")
 
     # Kafka consumer
     kafka_consumer = KafkaSource.builder() \
-        .set_topic(input_topic) \
-        .set_properties(kafka_consumer_props) \
-        .set_deserialization_schema(ProtobufDeserializer()) \
+        .set_bootstrap_servers("localhost:9092") \
+        .set_group_id(f"flink-market-analytics-{region}") \
+        .set_topics(input_topic) \
+        .set_value_only_deserializer(ProtobufDeserializer()) \
         .build()
         
 
     # Stream processing
-    financial_tick_stream = env.add_source(kafka_consumer).key_by(lambda tick: tick["symbol"])
+    financial_tick_stream = env.from_source(kafka_consumer, WatermarkStrategy.for_monotonous_timestamps(), f"Kafka Source for {region}")
 
     # Perform analytics in 1-minute tumbling windows
     def process_window(key, window: TimeWindow, elements, out):
@@ -74,7 +73,9 @@ def create_job(region: str, input_topic: str, output_topic: str, parallelism: in
             "windowEnd": window.get_end()
         })
 
-    analytics_stream = financial_tick_stream.time_window_all(Time.minutes(1)).apply(process_window)
+    analytics_stream = financial_tick_stream.key_by(lambda tick: tick["symbol"]) \
+        .window(TumblingEventTimeWindows.of(Time.minutes(1))) \
+        .apply(process_window) \
 
     # Kafka producer properties
     kafka_producer_props = {
@@ -86,7 +87,7 @@ def create_job(region: str, input_topic: str, output_topic: str, parallelism: in
     kafka_producer = KafkaSink.builder() \
         .set_topic(output_topic) \
         .set_properties(kafka_producer_props) \
-        .set_serialization_schema(ProtobufSerializer()) \
+        .set_value_serialization_schema(ProtobufSerializer()) \
         .build()
 
     # Add sink to Kafka
