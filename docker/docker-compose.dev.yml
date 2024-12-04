@@ -13,6 +13,7 @@ services:
       - ../report/bibliography.bib:/report/bibliography.bib
       - ../report/index.qmd:/report/index.qmd
       - ../report/header.tex:/report/header.tex
+      - ../report/images:/report/images
     profiles:
         - report
 
@@ -48,29 +49,31 @@ services:
 
   # ------ Flink Job Manager ------- #
   flink-jobmanager:
-    build:
-      context: ..
-      dockerfile: ./docker/dockerfiles/flink/Dockerfile
+    image: flink:latest
     container_name: flink-jobmanager
+    command: jobmanager
     ports:
       - '8081:8081'  # Flink Web UI
     environment:
       - JOB_MANAGER_RPC_ADDRESS=flink-jobmanager
     volumes:
-      - ../services/flink-python-analytics:/opt/flink/usrlib
-    command: jobmanager
+      - ../services/flink-scala-analytics:/opt/flink/usrlib
+    depends_on:
+      - kafka
+    
 
   # ------ Flink Task Manager ------- #
   flink-taskmanager:
-    build:
-      context: ..
-      dockerfile: ./docker/dockerfiles/flink/Dockerfile
-    container_name: flink-taskmanager
+    image: flink:latest
+    command: taskmanager
+    deploy:
+      replicas: 1
     environment:
-      - JOB_MANAGER_RPC_ADDRESS=flink-jobmanager
-      - FLINK_TM_NUM_TASK_SLOTS=4  # Increase the number of task slots
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: flink-jobmanager
+        taskmanager.numberOfTaskSlots: 8
+    volumes:
+      - ../services/flink-scala-analytics:/opt/flink/usrlib
     depends_on:
       - flink-jobmanager
-    volumes:
-      - ../services/flink-python-analytics:/opt/flink/usrlib
-    command: taskmanager
