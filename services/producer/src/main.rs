@@ -47,11 +47,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let current_time = Utc::now().naive_utc() + time_offset;
         let delay = current_time.signed_duration_since(record.trading_date_time);
 
+        let milliseconds = record.trading_date_time.and_utc().timestamp_subsec_millis();
+        let trading_date_time_str = format!(
+            "{}.{:03}",
+            record.trading_date_time.format("%Y-%m-%d %H:%M:%S"),
+            milliseconds
+        );
+
         let protobuf_message = FinancialTick {
             id: record.id,
             sec_type: record.sec_type,
             last: record.last,
-            trading_date_time: record.trading_date_time.to_string(),
+            trading_date_time: trading_date_time_str,
         };
 
         let mut buf = Vec::new();
