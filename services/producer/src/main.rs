@@ -59,9 +59,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let mut buf = Vec::new();
         record.encode(&mut buf)?; // Serialize to bytes
-
+        let topic = format!("{}-ticks", region);
+        let topic_str = topic.as_str();
         let produce_future = producer.send(
-            FutureRecord::to(&region)
+            FutureRecord::to(topic_str)
                 .key(&record.id)
                 .payload(&buf),
             Duration::from_secs(0),
