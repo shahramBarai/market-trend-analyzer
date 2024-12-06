@@ -100,8 +100,8 @@ services:
       dockerfile: ./docker/dockerfiles/webapp-server/Dockerfile
     environment:
       - KAFKA_BROKERS=kafka:9092
-      - KAFKA_TOPICS=FR
-      - KAFKA_GROUP_ID=webapp
+      - KAFKA_TOPICS=FR-tick,FR-EMA,FR-advisories,NL-tick,NL-EMA,NL-advisories,ETR-tick,ETR-EMA,ETR-advisories
+      - KAFKA_GROUP_ID=webapp-server
     restart: "no"
     volumes:
       - ../services/webapp:/app
