@@ -1,6 +1,6 @@
 lazy val flinkScalaAnalytics = (project in file("."))
   .settings(
-    scalaVersion := "2.12.17",
+    scalaVersion := "2.12.20",
     name := "flink-scala-analytics",
     libraryDependencies ++= Seq(
       "org.apache.flink" %% "flink-scala" % "1.14.0",
