@@ -6,6 +6,7 @@ const { Kafka, CompressionTypes, CompressionCodecs } = require("kafkajs");
 const SnappyCodec = require("kafkajs-snappy");
 import {
   decodeBuyAdvisory,
+  decodeEMAResult,
   decodeFinancialTick,
 } from "../helpers/protobufLoader.js";
 
@@ -36,17 +37,24 @@ const startKafkaConsumer = async (io) => {
   await consumer.run({
     eachMessage: async ({ topic, partition, message }) => {
       try {
-        if (topic.includes("analytics")) {
+        if (topic.includes("advisories")) {
           const advisory = decodeBuyAdvisory(message.value);
           // Emit to clients interested in buy advisories
           io.to(`share_advis:${advisory.symbol}`).emit(
             `${advisory.symbol}-advis`,
             advisory
           );
-        } else {
+          io.to(`share_advis:ALL`).emit(`ALL-advis`, advisory);
+        } else if (topic.includes("ticks")) {
           const tick = decodeFinancialTick(message.value);
           // Emit to clients interested in financial ticks
           io.to(`share_tick:${tick.id}`).emit(`${tick.id}-tick`, tick);
+          io.to(`share_tick:ALL`).emit(`ALL-tick`, tick);
+        } else if (topic.includes("-EMA")) {
+          const ema = decodeEMAResult(message.value);
+          // Emit to clients interested in EMA results
+          io.to(`share_ema:${ema.symbol}`).emit(`${ema.symbol}-ema`, ema);
+          io.to(`share_ema:ALL`).emit(`ALL-ema`, ema);
         }
       } catch (err) {
         console.error("Error processing message:", err);

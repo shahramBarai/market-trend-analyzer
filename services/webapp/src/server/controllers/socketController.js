@@ -25,6 +25,10 @@ const handleSubscription = (socket, subscription) => {
     socket.join(`share_tick:${share}`);
   }
 
+  if (dataType === "ema") {
+    socket.join(`share_ema:${share}`);
+  }
+
   // In handleSubscription
   console.log(`Socket ${socket.id} joined rooms:`, Array.from(socket.rooms));
 };
@@ -40,6 +44,10 @@ const handleUnsubscription = (socket, subscription) => {
 
   if (dataType === "tick") {
     socket.leave(`share_tick:${share}`);
+  }
+
+  if (dataType === "ema") {
+    socket.leave(`share_ema:${share}`);
   }
 };
 
