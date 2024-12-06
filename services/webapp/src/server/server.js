@@ -20,7 +20,7 @@ startKafkaConsumer(io).catch((err) => {
 });
 
 // Start the HTTP server
-const PORT = process.env.SERVER_PORT || 3000;
+const PORT = 7777;
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });

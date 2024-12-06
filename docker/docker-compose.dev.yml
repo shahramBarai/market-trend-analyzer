@@ -77,3 +77,47 @@ services:
       - ../services/flink-scala-analytics:/opt/flink/usrlib
     depends_on:
       - flink-jobmanager
+
+  # ------ Web App ------- #
+  # Nginx load balancer
+  nginx:
+    image: nginx:latest
+    ports:
+      - "7800:7800"
+    depends_on:
+      - webapp-client
+      - webapp-server
+    volumes:
+      - ./configs/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+
+  webapp-client:
+    build:
+      context: ..
+      dockerfile: ./docker/dockerfiles/webapp-client/Dockerfile
+    container_name: webapp-client
+    restart: "no"
+    volumes:
+      - ../services/webapp:/app
+    expose:
+      - 3000
+    depends_on:
+      - webapp-server
+
+  # Run multiple server containers
+  webapp-server:
+    build:
+      context: ..
+      dockerfile: ./docker/dockerfiles/webapp-server/Dockerfile
+    environment:
+      - KAFKA_BROKERS=kafka:9092
+      - KAFKA_TOPICS=FR
+      - KAFKA_GROUP_ID=${HOSTNAME}
+    restart: "no"
+    volumes:
+      - ../services/webapp:/app
+    expose:
+      - 7777
+    depends_on:
+      - kafka
+    deploy:
+        replicas: 1
