@@ -1,10 +1,10 @@
 {
   "name": "webapp",
   "version": "1.0.0",
-  "main": "index.js",
   "scripts": {
+    "build:client": "parcel build src/client/index.html --dist-dir dist",
     "start": "npm run start:client & npm run start:server",
-    "start:client": "parcel src/client/index.html",
+    "start:client": "parcel src/client/index.html --port 3000",
     "start:server": "nodemon src/server/server.js"
   },
   "devDependencies": {

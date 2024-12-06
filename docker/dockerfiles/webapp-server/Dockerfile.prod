@@ -1,0 +1,9 @@
+FROM node:lts-alpine3.17 
+
+EXPOSE 7777
+
+WORKDIR /app
+
+COPY ./services/webapp .
+
+CMD [ "npm", "run", "start:server" ]

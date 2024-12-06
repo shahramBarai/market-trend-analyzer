@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { io } from "socket.io-client";
 import { LineChardCard } from "./components/Cards";
 
-const SOCKET_SERVER_URL = "http://localhost:3000"; // Adjust to your server URL
+const SOCKET_SERVER_URL = "/api";
 
 function App() {
   /** @typedef {import("socket.io-client").Socket} Socket */
@@ -13,8 +13,10 @@ function App() {
 
   useEffect(() => {
     // Connect to the Socket.io server
-    socketRef.current = io(SOCKET_SERVER_URL);
-    socketRef.current.on("connect", () => {
+    socketRef.current = io("http://localhost:7800", {
+      path: "/api/socket.io",
+    });
+    socketRef.current.on("connection", () => {
       setConnected(true);
     });
     socketRef.current.on("disconnect", () => {

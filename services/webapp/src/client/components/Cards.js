@@ -21,7 +21,9 @@ const Card = ({ className, title, children }) => {
       className={`${className} relative flex flex-col h-64 rounded-xl border shadow-sm bg-black`}
     >
       <div className="p-6 tracking-tight text-sm font-medium">{title}</div>
-      {children}
+      <ResponsiveContainer width="100%" height="100%">
+        {children}
+      </ResponsiveContainer>
     </div>
   );
 };
@@ -102,7 +104,17 @@ export const LineChardCard = ({ className = "", share, socket }) => {
 
   return (
     <Card className={className} title={share}>
-      <LineChart width={500} height={300} data={data}>
+      <LineChart
+        width={500}
+        height={300}
+        data={data}
+        margin={{
+          top: 0,
+          right: 30,
+          left: 5,
+          bottom: 10,
+        }}
+      >
         <XAxis dataKey="tradingDateTime" />
         <YAxis />
         <CartesianGrid stroke="#eee" strokeDasharray="5 5" />
