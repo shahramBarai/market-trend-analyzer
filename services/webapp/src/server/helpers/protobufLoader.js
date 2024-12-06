@@ -4,6 +4,7 @@ import { fileURLToPath } from "url";
 
 let BuyAdvisoryProto = null;
 let FinancialTickProto = null;
+let EMAResultProto = null;
 
 // Define __dirname in ES module context
 const __filename = fileURLToPath(import.meta.url);
@@ -16,6 +17,7 @@ const loadProtobuf = async () => {
     );
     BuyAdvisoryProto = root.lookupType("mypackage.BuyAdvisory");
     FinancialTickProto = root.lookupType("mypackage.FinancialTick");
+    EMAResultProto = root.lookupType("mypackage.EMAResult");
     console.log("Protobuf loaded successfully.");
   } catch (err) {
     console.error("Error loading Protobuf:", err);
@@ -47,4 +49,22 @@ const decodeFinancialTick = (buffer) => {
   });
 };
 
-export { loadProtobuf, decodeBuyAdvisory, decodeFinancialTick };
+const decodeEMAResult = (buffer) => {
+  if (!EMAResultProto) {
+    throw new Error("Protobuf not loaded yet.");
+  }
+
+  const decodedMessage = EMAResultProto.decode(buffer);
+  return EMAResultProto.toObject(decodedMessage, {
+    longs: String,
+    enums: String,
+    bytes: String,
+  });
+};
+
+export {
+  loadProtobuf,
+  decodeBuyAdvisory,
+  decodeFinancialTick,
+  decodeEMAResult,
+};

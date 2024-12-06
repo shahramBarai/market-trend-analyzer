@@ -16,18 +16,26 @@ object RegionalMarketAnalytics {
   def main(args: Array[String]): Unit = {
     // Define regional jobs
     val regions = Seq(
-      ("Region1", "FR", "FR-analytics")
+      ("Region1", "FR-ticks", "FR-EMA", "FR-advisories")
     )
 
-    regions.foreach { case (region, inputTopic, outputTopic) =>
-      createJob(region, inputTopic, outputTopic, parallelism = 1)
+    regions.foreach {
+      case (region, inputTopic, outputTopic_EMA, outputTopic_BuyAdvisory) =>
+        createJob(
+          region,
+          inputTopic,
+          outputTopic_EMA,
+          outputTopic_BuyAdvisory,
+          parallelism = 1
+        )
     }
   }
 
   def createJob(
       region: String,
       inputTopic: String,
-      outputTopic: String,
+      outputTopic_EMA: String,
+      outputTopic_BuyAdvisory: String,
       parallelism: Int
   ): Unit = {
     // Setup Flink execution environment, event time, and parallelism
@@ -68,6 +76,27 @@ object RegionalMarketAnalytics {
       .window(TumblingEventTimeWindows.of(windowSize, windowOffset))
       .apply(new EMACalculator)
 
+    // Kafka producer properties for EMA results
+    val emaProducerProps = new java.util.Properties()
+    emaProducerProps.put(
+      ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,
+      "kafka:9092"
+    )
+    emaProducerProps.put(
+      "compression.type",
+      "snappy"
+    )
+
+    // Create Kafka producer for EMA results
+    val emaProducer = new FlinkKafkaProducer[EMAResult](
+      outputTopic_EMA,
+      new EMAResultSerializer(),
+      emaProducerProps
+    )
+
+    // Add sink to Kafka for EMA results
+    emaStream.addSink(emaProducer)
+
     // Detect crossovers and generate buy advisories
     val buyAdvisoryStream = emaStream
       .keyBy(_.symbol)
@@ -86,8 +115,8 @@ object RegionalMarketAnalytics {
 
     // Create Kafka producer for buy advisories
     val buyAdvisoryProducer = new FlinkKafkaProducer[BuyAdvisory](
-      outputTopic,
-      new ProtobufSerializer(),
+      outputTopic_BuyAdvisory,
+      new BuyAdvisorySerializer(),
       buyAdvisoryProducerProps
     )
 
