@@ -2,7 +2,16 @@
 
 Scalable Systems and Data Management Course Project: Detecting Trading Trends in Financial Tick Data
 
-## Scala Build Process
+## Set up Kafka
+
+```bash
+docker compose up -d kafka
+docker exec -it kafka /bin/bash /configs/create_topics.sh
+```
+
+## Set up Flink analytics job
+
+Clean and compile the project
 
 ```bash
 mkdir -p build
@@ -16,22 +25,13 @@ docker run -it --rm \
   bash -c "sbt 'set Compile / PB.protoSources := Seq(file(\"/shared\"))' 'set target := file(\"/build\")' assembly && chown -R $(id -u):$(id -g) /build"
 ```
 
-## Create kafka topics
+## Run everything
 
 ```bash
-docker exec -it kafka /bin/bash /configs/create_topics.sh
+docker compose up
 ```
 
-## Start the Flink job
-
-Clean and compile the project
-
-```bash
-sbt clean compile
-sbt flinkScalaAnalytics/assembly
-```
-
-Run the Flink job
+## Run the Flink job
 
 ```bash
 docker exec -it flink-jobmanager bash -c "flink run /opt/flink/usrlib/scala-2.12/flink-scala-analytics-assembly-0.1.0-SNAPSHOT.jar"
