@@ -1,4 +1,4 @@
-import mypackage.message.{FinancialTick, EMAResult}
+import finance.trading.analysis.message.{FinancialTick, EMAResult}
 
 import org.apache.flink.api.common.state.{ValueState, ValueStateDescriptor}
 import org.apache.flink.configuration.Configuration
@@ -58,7 +58,7 @@ class EMACalculator
         symbol = key,
         ema38 = ema38,
         ema100 = ema100,
-        timestamp = window.getEnd.toString
+        tradeTimestamp = input.last.tradeTimestamp
       )
     )
   }

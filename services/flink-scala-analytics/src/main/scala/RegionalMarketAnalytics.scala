@@ -1,4 +1,4 @@
-import mypackage.message.{FinancialTick, EMAResult, BuyAdvisory}
+import finance.trading.analysis.message.{FinancialTick, EMAResult, BuyAdvisory}
 
 import org.apache.flink.streaming.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic

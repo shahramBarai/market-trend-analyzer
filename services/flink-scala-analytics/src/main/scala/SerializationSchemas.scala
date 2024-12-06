@@ -1,4 +1,4 @@
-import mypackage.message.{FinancialTick, BuyAdvisory}
+import finance.trading.analysis.message.{FinancialTick, BuyAdvisory}
 import org.apache.flink.api.common.serialization.{
   DeserializationSchema,
   SerializationSchema

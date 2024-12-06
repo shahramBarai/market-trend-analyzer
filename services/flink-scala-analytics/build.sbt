@@ -9,6 +9,7 @@ lazy val flinkScalaAnalytics = (project in file("."))
       "org.apache.kafka" % "kafka-clients" % "2.8.0",
       "org.slf4j" % "slf4j-api" % "1.7.32",
       "org.slf4j" % "slf4j-log4j12" % "1.7.32",
+      "com.thesamet.scalapb" %% "scalapb-runtime" % scalapb.compiler.Version.scalapbVersion % "protobuf",
       "com.google.protobuf" % "protobuf-java" % "3.21.9"
     ),
     Compile / PB.targets := Seq(

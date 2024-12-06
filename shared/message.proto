@@ -23,6 +23,6 @@ message EMAResult {
 
 message BuyAdvisory {
     string symbol = 1;
-    google.protobuf.Timestamp timestamp = 2;
+    google.protobuf.Timestamp trade_timestamp = 2;
     string message = 3;
 }

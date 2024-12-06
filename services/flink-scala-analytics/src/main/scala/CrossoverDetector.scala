@@ -1,4 +1,4 @@
-import mypackage.message.{EMAResult, BuyAdvisory}
+import finance.trading.analysis.message.{EMAResult, BuyAdvisory}
 
 import org.apache.flink.api.common.state.{ValueState, ValueStateDescriptor}
 import org.apache.flink.configuration.Configuration
@@ -29,7 +29,7 @@ class CrossoverDetector extends RichFlatMapFunction[EMAResult, BuyAdvisory] {
       out.collect(
         BuyAdvisory(
           symbol = value.symbol,
-          timestamp = value.timestamp,
+          tradeTimestamp = value.tradeTimestamp,
           message = s"Buy!"
         )
       )
@@ -39,7 +39,7 @@ class CrossoverDetector extends RichFlatMapFunction[EMAResult, BuyAdvisory] {
       out.collect(
         BuyAdvisory(
           symbol = value.symbol,
-          timestamp = value.timestamp,
+          tradeTimestamp = value.tradeTimestamp,
           message = s"Sell!"
         )
       )
