@@ -3,18 +3,15 @@ use chrono::NaiveDateTime;
 use std::error::Error;
 use tokio::sync::mpsc;
 
-#[derive(Debug, Clone)]
-pub struct Message {
-    pub id: String,
-    pub sec_type: String,
-    pub last: String,
-    pub trading_date_time: NaiveDateTime,
+mod trading {
+    include!(concat!(env!("OUT_DIR"), "/finance.trading.analysis.rs"));
 }
+pub use trading::FinancialTick;
 
 #[async_trait]
 pub trait FinTickSource {
     async fn subscribe(
         &mut self,
         topic: &str,
-    ) -> Result<mpsc::Receiver<Option<Message>>, Box<dyn Error>>;
+    ) -> Result<mpsc::Receiver<Option<FinancialTick>>, Box<dyn Error>>;
 }

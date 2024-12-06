@@ -3,21 +3,18 @@ mod financial_tick_source;
 use std::time::Duration;
 
 use chrono::Utc;
-use financial_tick_source::{CSVSource, FinTickSource, Message};
+use financial_tick_source::{CSVSource, FinTickSource};
 
 use rdkafka::config::ClientConfig;
-use rdkafka::consumer::stream_consumer::StreamConsumer;
-use rdkafka::consumer::Consumer;
-use rdkafka::message::{BorrowedMessage, OwnedMessage};
 use rdkafka::producer::{FutureProducer, FutureRecord};
-use rdkafka::Message as KafkaMessage;
-use serde::{Deserialize, Serialize};
 
-mod mypackage {
-    include!(concat!(env!("OUT_DIR"), "/mypackage.rs"));
+use prost::Message;
+
+fn timestamp_diff_ms(t1: prost_types::Timestamp, t2: prost_types::Timestamp) -> i64 {
+    let t1 = t1.seconds * 1000 + i64::from(t1.nanos) / 1_000_000;
+    let t2 = t2.seconds * 1000 + i64::from(t2.nanos) / 1_000_000;
+    t1 - t2
 }
-use mypackage::FinancialTick;
-use prost::Message as ProtoMassage;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -36,7 +33,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .create::<FutureProducer>()?;
 
     while let Some(record) = receiver.recv().await {
-        let record = match record {
+        let mut record = match record {
             Some(record) => record,
             None => {
                 skipped += 1;
@@ -44,34 +41,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         };
 
-        let current_time = Utc::now().naive_utc() + time_offset;
-        let delay = current_time.signed_duration_since(record.trading_date_time);
-
-        let milliseconds = record.trading_date_time.and_utc().timestamp_subsec_millis();
-        let trading_date_time_str = format!(
-            "{}.{:03}",
-            record.trading_date_time.format("%Y-%m-%d %H:%M:%S"),
-            milliseconds
-        );
-
-        let protobuf_message = FinancialTick {
-            id: record.id,
-            sec_type: record.sec_type,
-            last: record.last,
-            trading_date_time: trading_date_time_str,
-        };
-
-        let mut buf = Vec::new();
-        protobuf_message.encode(&mut buf)?; // Serialize to bytes
-
         // Split `record.id` into `share_name` and `region`
-        let parts: Vec<&str> = protobuf_message.id.split('.').collect();
+        let parts: Vec<&str> = record.id.split('.').collect();
         //let share_name = parts[0];
         let region = parts[1];
 
+        // Embed wallclock timestamp and delay for benchmarking
+        let current_time = Utc::now() + time_offset;
+        record.wallclock_timestamp = Some(prost_types::Timestamp {
+            seconds: current_time.timestamp(),
+            nanos: current_time.timestamp_subsec_nanos() as i32,
+        });
+        record.delay = timestamp_diff_ms(
+            record.wallclock_timestamp.unwrap(),
+            record.trade_timestamp.unwrap(),
+        );
+
+        let mut buf = Vec::new();
+        record.encode(&mut buf)?; // Serialize to bytes
+
         let produce_future = producer.send(
             FutureRecord::to(&region)
-                .key(&protobuf_message.id)
+                .key(&record.id)
                 .payload(&buf),
             Duration::from_secs(0),
         );
@@ -79,8 +70,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         match produce_future.await {
             Ok(delivery) => println!(
                 "Sent [t:{}, d:{}ms, s:{}]: {:?}",
-                record.trading_date_time,
-                delay.num_milliseconds(),
+                record.trade_timestamp.unwrap_or_else(|| prost_types::Timestamp::default()).seconds,
+                record.delay,
                 skipped,
                 delivery
             ),

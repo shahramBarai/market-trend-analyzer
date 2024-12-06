@@ -1,23 +1,28 @@
 syntax = "proto3";
 
-package mypackage;
+package finance.trading.analysis;
+
+import "google/protobuf/timestamp.proto";
 
 message FinancialTick {
     string id = 1;
     string sec_type = 2;
     string last = 3;
-    string trading_date_time = 4;
+    google.protobuf.Timestamp trade_timestamp = 4;
+    google.protobuf.Timestamp wallclock_timestamp = 5;
+    int64 delay = 6;
 }
 
 message EMAResult {
     string symbol = 1;
     double ema38 = 2;
     double ema100 = 3;
-    string timestamp = 4;
+    google.protobuf.Timestamp trade_timestamp = 4;
+
 }
 
 message BuyAdvisory {
     string symbol = 1;
-    string timestamp = 2;
+    google.protobuf.Timestamp timestamp = 2;
     string message = 3;
 }
