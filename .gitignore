@@ -4,6 +4,7 @@ services/queue/test
 # Added by cargo
 
 /target
+build
 .scala-build/
 .metals/
 .bsp/
