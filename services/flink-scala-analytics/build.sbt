@@ -9,10 +9,15 @@ lazy val flinkScalaAnalytics = (project in file("."))
       "org.apache.kafka" % "kafka-clients" % "2.8.0",
       "org.slf4j" % "slf4j-api" % "1.7.32",
       "org.slf4j" % "slf4j-log4j12" % "1.7.32",
-      "com.thesamet.scalapb" %% "compilerplugin" % "0.11.11",
       "com.google.protobuf" % "protobuf-java" % "3.21.9"
     ),
     Compile / PB.targets := Seq(
       scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"
-    )
+    ),
+    Compile / PB.protocExecutable := {
+      sys.env.get("PROTOC_PATH") match {
+        case Some(path) => file(path)
+        case None => (Compile / PB.protocExecutable).value
+      }
+    }
   )
