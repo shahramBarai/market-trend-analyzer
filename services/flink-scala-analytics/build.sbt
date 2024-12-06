@@ -14,6 +14,7 @@ lazy val flinkScalaAnalytics = (project in file("."))
     Compile / PB.targets := Seq(
       scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"
     ),
+    Compile / PB.protoSources := Seq(file("../../shared")),
     Compile / PB.protocExecutable := {
       sys.env.get("PROTOC_PATH") match {
         case Some(path) => file(path)

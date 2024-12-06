@@ -9,9 +9,15 @@ message FinancialTick {
     string trading_date_time = 4;
 }
 
-message AnalyticsResult {
-  string symbol = 1;
-  string avgPrice = 2;
-  string totalVolume = 3;
-  string windowEnd = 4;
+message EMAResult {
+    string symbol = 1;
+    double ema38 = 2;
+    double ema100 = 3;
+    string timestamp = 4;
+}
+
+message BuyAdvisory {
+    string symbol = 1;
+    string timestamp = 2;
+    string message = 3;
 }
