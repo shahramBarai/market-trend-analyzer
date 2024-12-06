@@ -1,4 +1,4 @@
-import mypackage.message.{FinancialTick, BuyAdvisory}
+import mypackage.message.{FinancialTick, EMAResult, BuyAdvisory}
 import org.apache.flink.api.common.serialization.{
   DeserializationSchema,
   SerializationSchema
@@ -19,9 +19,16 @@ class FinancialTickDeserializer extends DeserializationSchema[FinancialTick] {
     TypeInformation.of(classOf[FinancialTick])
 }
 
-// Protobuf serializer for FinancialTick
-class ProtobufSerializer extends SerializationSchema[BuyAdvisory] {
-  override def serialize(element: BuyAdvisory): Array[Byte] = {
-    element.toByteArray
+// Protobuf serializer for EMAResult
+class EMAResultSerializer extends SerializationSchema[EMAResult] {
+  override def serialize(emar: EMAResult): Array[Byte] = {
+    emar.toByteArray
+  }
+}
+
+// Protobuf serializer for BuyAdvisory
+class BuyAdvisorySerializer extends SerializationSchema[BuyAdvisory] {
+  override def serialize(buyAdvisory: BuyAdvisory): Array[Byte] = {
+    buyAdvisory.toByteArray
   }
 }
