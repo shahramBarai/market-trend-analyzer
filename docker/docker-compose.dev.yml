@@ -57,7 +57,7 @@ services:
     environment:
       - JOB_MANAGER_RPC_ADDRESS=flink-jobmanager
     volumes:
-      - ../services/flink-scala-analytics:/opt/flink/usrlib
+      - ../build:/opt/flink/usrlib
     depends_on:
       - kafka
     

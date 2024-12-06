@@ -34,6 +34,5 @@ sbt flinkScalaAnalytics/assembly
 Run the Flink job
 
 ```bash
-docker exec -it flink-jobmanager bash
-flink run /opt/flink/usrlib/target/scala-2.12/market-trend-analyzer-assembly-0.1.0-SNAPSHOT.jar
+docker exec -it flink-jobmanager bash -c "flink run /opt/flink/usrlib/scala-2.12/flink-scala-analytics-assembly-0.1.0-SNAPSHOT.jar"
 ```
