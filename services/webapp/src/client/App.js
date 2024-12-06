@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { io } from "socket.io-client";
 import { LineChardCard } from "./components/Cards";
 
-const SOCKET_SERVER_URL = "/api";
+const SOCKET_SERVER_URL = "http://localhost:7777";
 
 function App() {
   /** @typedef {import("socket.io-client").Socket} Socket */
@@ -13,10 +13,8 @@ function App() {
 
   useEffect(() => {
     // Connect to the Socket.io server
-    socketRef.current = io("http://localhost:7800", {
-      path: "/api/socket.io",
-    });
-    socketRef.current.on("connection", () => {
+    socketRef.current = io(SOCKET_SERVER_URL);
+    socketRef.current.on("connect", () => {
       setConnected(true);
     });
     socketRef.current.on("disconnect", () => {
@@ -39,7 +37,7 @@ function App() {
 
       {/* Display financial ticks */}
       <h2 className="text-xl font-semibold mt-4">Financial Ticks</h2>
-      <div className="grid grid-cols-3 grid-rows-1 gap-3">
+      <div className="grid grid-cols-2 grid-rows-1 gap-3">
         <LineChardCard share="ALD.FR" socket={socketRef.current} />
         <LineChardCard share="CS.FR" socket={socketRef.current} />
         <LineChardCard share="STM.FR" socket={socketRef.current} />

@@ -17,7 +17,7 @@ FROM nginx:latest as server
 
 EXPOSE 3000
 
-COPY ./docker/configs/nginx/client.prod.nginx.conf /etc/nginx/nginx.conf
+COPY ./docker/dockerfiles/webapp-client/client.prod.nginx.conf /etc/nginx/nginx.conf
 
 COPY --from=build /app/dist /usr/share/nginx/html
 
