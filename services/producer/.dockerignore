@@ -1,0 +1,6 @@
+target/
+data/
+build/
+.metals/
+.bloop/
+*csv
