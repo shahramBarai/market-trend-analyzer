@@ -108,6 +108,7 @@ services:
     restart: "no"
     volumes:
       - ../services/webapp:/app
+      - ../shared:/shared
     ports:
       - 3000:3000
     depends_on:
