@@ -23,6 +23,7 @@ services:
     container_name: kafka
     hostname: kafka
     ports:
+      - '9092:9092'
       - '9094:9094'
     environment:
       - KAFKA_CFG_NODE_ID=0
