@@ -74,38 +74,24 @@ services:
         jobmanager.rpc.address: flink-jobmanager
         taskmanager.numberOfTaskSlots: 8
     volumes:
-      - ../services/flink-scala-analytics:/opt/flink/usrlib
+      - ../build:/opt/flink/usrlib
     depends_on:
       - flink-jobmanager
 
   # ------ Web App ------- #
-  webapp-client:
-    container_name: webapp-client
+  webapp:
+    container_name: webapp
     build:
       context: ..
-      dockerfile: ./docker/dockerfiles/webapp-client/Dockerfile
+      dockerfile: ./docker/dockerfiles/webapp/Dockerfile
+    environment:
+      - KAFKA_BROKERS=kafka:9092
+      - KAFKA_TOPICS=FR-tick,FR-ema,FR-advisories,NL-tick,NL-ema,NL-advisories,ETR-tick,ETR-ema,ETR-advisories
+      - KAFKA_GROUP_ID=webapp
     restart: "no"
     volumes:
       - ../services/webapp:/app
     ports:
       - 3000:3000
-    depends_on:
-      - webapp-server
-
-  # Run multiple server containers
-  webapp-server:
-    container_name: webapp-server
-    build:
-      context: ..
-      dockerfile: ./docker/dockerfiles/webapp-server/Dockerfile
-    environment:
-      - KAFKA_BROKERS=kafka:9092
-      - KAFKA_TOPICS=FR-tick,FR-EMA,FR-advisories,NL-tick,NL-EMA,NL-advisories,ETR-tick,ETR-EMA,ETR-advisories
-      - KAFKA_GROUP_ID=webapp-server
-    restart: "no"
-    volumes:
-      - ../services/webapp:/app
-    ports:
-      - 7777:7777
     depends_on:
       - kafka
