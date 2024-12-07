@@ -40,6 +40,5 @@ docker exec -it flink-jobmanager bash -c "flink run /opt/flink/usrlib/scala-2.12
 ## Run producer
 
 ```bash
-cd services/producer
-cargo run
+cd services/producer && cargo run
 ```

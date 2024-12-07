@@ -79,13 +79,22 @@ export const BarChartCard = ({ className, share, socket }) => {
 
 export const LineChardCard = ({ className = "", share, socket }) => {
   const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const dataType = "ema";
     const eventName = `${share}-ema`;
 
-    // Subscribe to the share
-    socket.emit("subscribe", { share, dataType });
+    const fetchHistoricalData = async () => {
+      return fetch(`/api/historical?dataType=${dataType}&share=${share}`)
+        .then((res) => res.json())
+        .then((data) => {
+          setData(data.messages);
+          setLoading(false);
+          console.log("Historical data:", data.messages);
+        })
+        .catch((err) => console.error(err));
+    };
 
     // Event handler
     const handleData = (newData) => {
@@ -93,8 +102,13 @@ export const LineChardCard = ({ className = "", share, socket }) => {
       setData((prev) => [...prev, newData]);
     };
 
-    // Listen for data
-    socket.on(eventName, handleData);
+    fetchHistoricalData().then(() => {
+      // Subscribe to the share
+      socket.emit("subscribe", { share, dataType });
+
+      // Listen for data
+      socket.on(eventName, handleData);
+    });
 
     // Clean up on unmount
     return () => {
@@ -105,23 +119,33 @@ export const LineChardCard = ({ className = "", share, socket }) => {
 
   return (
     <Card className={className} title={share}>
-      <LineChart
-        width={500}
-        height={300}
-        data={data}
-        margin={{
-          top: 0,
-          right: 30,
-          left: 5,
-          bottom: 10,
-        }}
-      >
-        <XAxis dataKey="tradingDateTime" />
-        <YAxis />
-        <CartesianGrid stroke="#94a3b8" strokeDasharray="5 5" />
-        <Line type="monotone" dataKey="ema38" stroke="#1e293b" />
-        <Line type="monotone" dataKey="ema100" stroke="#020617" />
-      </LineChart>
+      {loading ? (
+        <div className="flex items-center justify-center h-full text-gray-500">
+          Loading...
+        </div>
+      ) : data.length === 0 ? (
+        <div className="flex items-center justify-center h-full text-gray-500">
+          No data
+        </div>
+      ) : (
+        <LineChart
+          width={500}
+          height={300}
+          data={data}
+          margin={{
+            top: 0,
+            right: 30,
+            left: 5,
+            bottom: 10,
+          }}
+        >
+          <XAxis dataKey="tradingDateTime" />
+          <YAxis />
+          <CartesianGrid stroke="#94a3b8" strokeDasharray="5 5" />
+          <Line type="monotone" dataKey="ema38" stroke="#1e293b" />
+          <Line type="monotone" dataKey="ema100" stroke="#020617" />
+        </LineChart>
+      )}
     </Card>
   );
 };

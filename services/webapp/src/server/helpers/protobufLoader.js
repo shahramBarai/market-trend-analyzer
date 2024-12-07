@@ -12,12 +12,12 @@ const __dirname = path.dirname(__filename);
 
 const loadProtobuf = async () => {
   try {
-    const root = await protobuf.load(
-      path.join(__dirname, "..", "message.proto")
+    const root = await protobuf.load("/shared/message.proto");
+    BuyAdvisoryProto = root.lookupType("finance.trading.analysis.BuyAdvisory");
+    FinancialTickProto = root.lookupType(
+      "finance.trading.analysis.FinancialTick"
     );
-    BuyAdvisoryProto = root.lookupType("mypackage.BuyAdvisory");
-    FinancialTickProto = root.lookupType("mypackage.FinancialTick");
-    EMAResultProto = root.lookupType("mypackage.EMAResult");
+    EMAResultProto = root.lookupType("finance.trading.analysis.EMAResult");
     console.log("Protobuf loaded successfully.");
   } catch (err) {
     console.error("Error loading Protobuf:", err);

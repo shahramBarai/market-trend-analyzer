@@ -1,20 +1,18 @@
 import React, { useEffect, useRef, useState } from "react";
 import { io } from "socket.io-client";
-import { Card, LineChardCard } from "./components/Cards";
+import { LineChardCard } from "./components/Cards";
 import Combobox from "./components/Combobox";
-
-const SOCKET_SERVER_URL = "http://localhost:7777";
 
 function App() {
   /** @typedef {import("socket.io-client").Socket} Socket */
   /** @type {React.MutableRefObject<Socket | null>} */
   const socketRef = useRef(null);
-
   const [connected, setConnected] = useState(false);
-
   useEffect(() => {
     // Connect to the Socket.io server
-    socketRef.current = io(SOCKET_SERVER_URL);
+    socketRef.current = io("/", {
+      path: "/api/socket.io",
+    });
     socketRef.current.on("connect", () => {
       setConnected(true);
     });
@@ -27,6 +25,9 @@ function App() {
       socketRef.current.disconnect();
     };
   }, []);
+
+  // Selecting a stock (Combobox)
+  const [value, setValue] = React.useState("");
 
   if (!connected) {
     return <div className="container mx-auto p-4">Connecting...</div>;
@@ -41,7 +42,11 @@ function App() {
         <div className="flex justify-between items-center">
           <h2 className="text-xl font-semibold mt-4">Financial Ticks</h2>
           <Combobox
+            value={value}
+            setValue={setValue}
             items={[
+              { label: "IFCSG.FR", value: "IFCSG.FR" },
+              { label: "SRP.FR", value: "SRP.FR" },
               { label: "AAPL", value: "AAPL" },
               { label: "GOOGL", value: "GOOGL" },
               { label: "MSFT", value: "MSFT" },
@@ -50,11 +55,15 @@ function App() {
             ]}
           />
         </div>
-        <LineChardCard
-          className="w-full"
-          share="ALL"
-          socket={socketRef.current}
-        />
+        {value === "" ? (
+          <div className="text-center text-gray-500">Select a stock</div>
+        ) : (
+          <LineChardCard
+            className="w-full"
+            share={value}
+            socket={socketRef.current}
+          />
+        )}
       </div>
     </div>
   );

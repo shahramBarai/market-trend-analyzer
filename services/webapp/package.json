@@ -2,10 +2,11 @@
   "name": "webapp",
   "version": "1.0.0",
   "scripts": {
+    "dev": "npm run dev:client & npm run dev:server",
+    "dev:client": "parcel src/client/index.html --port 3000",
+    "dev:server": "nodemon src/server/server.js",
     "build:client": "parcel build src/client/index.html --dist-dir dist",
-    "start": "npm run start:client & npm run start:server",
-    "start:client": "parcel src/client/index.html --port 3000",
-    "start:server": "nodemon src/server/server.js"
+    "prod": "npm run build:client && node src/server/server.js"
   },
   "devDependencies": {
     "nodemon": "^3.1.7",
@@ -23,6 +24,7 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.0.4",
     "dotenv": "^16.4.7",
+    "express": "^4.21.2",
     "kafkajs": "^2.2.4",
     "kafkajs-snappy": "^1.1.0",
     "lucide-react": "^0.468.0",

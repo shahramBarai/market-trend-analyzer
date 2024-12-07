@@ -50,7 +50,7 @@ const startKafkaConsumer = async (io) => {
           // Emit to clients interested in financial ticks
           io.to(`share_tick:${tick.id}`).emit(`${tick.id}-tick`, tick);
           io.to(`share_tick:ALL`).emit(`ALL-tick`, tick);
-        } else if (topic.includes("-EMA")) {
+        } else if (topic.includes("-ema")) {
           const ema = decodeEMAResult(message.value);
           // Emit to clients interested in EMA results
           io.to(`share_ema:${ema.symbol}`).emit(`${ema.symbol}-ema`, ema);
