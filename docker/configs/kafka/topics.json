@@ -15,17 +15,17 @@
         "replicationFactor": 1
     },
     {
-        "name": "ETR-EMA",
+        "name": "ETR-ema",
         "partitions": 1,
         "replicationFactor": 1
     },
     {
-        "name": "FR-EMA",
+        "name": "FR-ema",
         "partitions": 1,
         "replicationFactor": 1
     },
     {
-        "name": "NL-EMA",
+        "name": "NL-ema",
         "partitions": 1,
         "replicationFactor": 1
     },

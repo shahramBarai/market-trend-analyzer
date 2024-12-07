@@ -16,7 +16,7 @@ object RegionalMarketAnalytics {
   def main(args: Array[String]): Unit = {
     // Define regional jobs
     val regions = Seq(
-      ("Region1", "FR-ticks", "FR-EMA", "FR-advisories")
+      ("Region1", "FR-ticks", "FR-ema", "FR-advisories")
     )
 
     regions.foreach {
