@@ -15,9 +15,8 @@ import {
 } from "../components/Command";
 import { Popover, PopoverContent, PopoverTrigger } from "../components/Popover";
 
-export default function Combobox({ items }) {
+export default function Combobox({ value, setValue, items }) {
   const [open, setOpen] = React.useState(false);
-  const [value, setValue] = React.useState("");
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -30,7 +29,7 @@ export default function Combobox({ items }) {
         >
           {value
             ? items.find((framework) => framework.value === value)?.label
-            : "Select framework..."}
+            : "Select..."}
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
