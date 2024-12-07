@@ -1,5 +1,5 @@
 [package]
-name = "market-ticks-provider"
+name = "market-ticks-producer"
 version = "0.1.0"
 edition = "2021"
 

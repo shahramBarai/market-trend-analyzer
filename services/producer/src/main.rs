@@ -9,6 +9,7 @@ use rdkafka::config::ClientConfig;
 use rdkafka::producer::{FutureProducer, FutureRecord};
 
 use prost::Message;
+use std::env;
 
 fn timestamp_diff_ms(t1: prost_types::Timestamp, t2: prost_types::Timestamp) -> i64 {
     let t1 = t1.seconds * 1000 + i64::from(t1.nanos) / 1_000_000;
@@ -26,8 +27,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut skipped = 0;
 
+    let kafka_brokers = env::var("KAFKA_BROKERS").unwrap_or_else(|_| "localhost:9092".to_string());
+
     let producer = ClientConfig::new()
-        .set("bootstrap.servers", "localhost:9094")
+        .set("bootstrap.servers", kafka_brokers.as_str())
         .set("message.timeout.ms", "5000")
         .set("compression.type", "snappy")
         .create::<FutureProducer>()?;
