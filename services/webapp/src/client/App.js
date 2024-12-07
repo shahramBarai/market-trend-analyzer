@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { io } from "socket.io-client";
-import { LineChardCard } from "./components/Cards";
+import { Card, LineChardCard } from "./components/Cards";
+import Combobox from "./components/Combobox";
 
 const SOCKET_SERVER_URL = "http://localhost:7777";
 
@@ -36,11 +37,24 @@ function App() {
       <h1 className="text-2xl font-bold mb-4">Market Data</h1>
 
       {/* Display financial ticks */}
-      <h2 className="text-xl font-semibold mt-4">Financial Ticks</h2>
-      <div className="grid grid-cols-2 grid-rows-1 gap-3">
-        <LineChardCard share="ALD.FR" socket={socketRef.current} />
-        <LineChardCard share="CS.FR" socket={socketRef.current} />
-        <LineChardCard share="STM.FR" socket={socketRef.current} />
+      <div className="flex flex-col gap-4">
+        <div className="flex justify-between items-center">
+          <h2 className="text-xl font-semibold mt-4">Financial Ticks</h2>
+          <Combobox
+            items={[
+              { label: "AAPL", value: "AAPL" },
+              { label: "GOOGL", value: "GOOGL" },
+              { label: "MSFT", value: "MSFT" },
+              { label: "AMZN", value: "AMZN" },
+              { label: "TSLA", value: "TSLA" },
+            ]}
+          />
+        </div>
+        <LineChardCard
+          className="w-full"
+          share="ALL"
+          socket={socketRef.current}
+        />
       </div>
     </div>
   );

@@ -36,3 +36,10 @@ docker compose up
 ```bash
 docker exec -it flink-jobmanager bash -c "flink run /opt/flink/usrlib/scala-2.12/flink-scala-analytics-assembly-0.1.0-SNAPSHOT.jar"
 ```
+
+## Run producer
+
+```bash
+cd services/producer
+cargo run
+```

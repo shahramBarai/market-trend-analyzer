@@ -15,10 +15,10 @@ import {
 } from "recharts";
 import { useEffect, useState } from "react";
 
-const Card = ({ className, title, children }) => {
+export const Card = ({ className, title, children }) => {
   return (
     <div
-      className={`${className} relative flex flex-col h-64 rounded-xl border shadow-sm bg-black`}
+      className={`${className} relative flex flex-col h-96 rounded-xl border shadow-sm bg-white`}
     >
       <div className="p-6 tracking-tight text-sm font-medium">{title}</div>
       <ResponsiveContainer width="100%" height="100%">
@@ -81,14 +81,15 @@ export const LineChardCard = ({ className = "", share, socket }) => {
   const [data, setData] = useState([]);
 
   useEffect(() => {
-    const dataType = "tick";
-    const eventName = `${share}-tick`;
+    const dataType = "ema";
+    const eventName = `${share}-ema`;
 
     // Subscribe to the share
     socket.emit("subscribe", { share, dataType });
 
     // Event handler
     const handleData = (newData) => {
+      console.log("Received EMA data:", newData);
       setData((prev) => [...prev, newData]);
     };
 
@@ -117,8 +118,9 @@ export const LineChardCard = ({ className = "", share, socket }) => {
       >
         <XAxis dataKey="tradingDateTime" />
         <YAxis />
-        <CartesianGrid stroke="#eee" strokeDasharray="5 5" />
-        <Line type="monotone" dataKey="last" stroke="#8884d8" />
+        <CartesianGrid stroke="#94a3b8" strokeDasharray="5 5" />
+        <Line type="monotone" dataKey="ema38" stroke="#1e293b" />
+        <Line type="monotone" dataKey="ema100" stroke="#020617" />
       </LineChart>
     </Card>
   );
