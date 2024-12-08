@@ -57,4 +57,12 @@ check_success
 # Run the producer
 echo "Running and printing the producer..."
 
-cd services/producer && cargo run
+# check if chose to run via docker or cargo using a flag --producer=docker
+if [ "$1" == "--producer=docker" ]; then
+    docker compose up -d producer
+    check_success
+else
+    cd services/producer
+    cargo run
+    check_success
+fi
