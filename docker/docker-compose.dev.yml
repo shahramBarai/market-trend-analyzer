@@ -23,7 +23,6 @@ services:
     container_name: kafka
     hostname: kafka
     ports:
-      - '9092:9092'
       - '9094:9094'
     environment:
       - KAFKA_CFG_NODE_ID=0
@@ -87,7 +86,7 @@ services:
       context: ..
       dockerfile: ./docker/dockerfiles/producer/Dockerfile
     environment:
-      - KAFKA_BROKERS=kafka:9092
+      - KAFKA_BROKERS=kafka:9094
     volumes:
       - type: bind
         source: ../services/producer/data
@@ -96,6 +95,8 @@ services:
           propagation: shared
     depends_on:
       - kafka
+    profiles:
+      - producer
 
   # ------ Web App ------- #
   webapp:
@@ -104,7 +105,7 @@ services:
       context: ..
       dockerfile: ./docker/dockerfiles/webapp/Dockerfile
     environment:
-      - KAFKA_BROKERS=kafka:9092
+      - KAFKA_BROKERS=kafka:9094
       - KAFKA_TOPICS=FR-ticks,FR-ema,FR-advisories,NL-ticks,NL-ema,NL-advisories,ETR-ticks,ETR-ema,ETR-advisories
       - KAFKA_GROUP_ID=webapp
     restart: "no"
