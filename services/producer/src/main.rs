@@ -27,7 +27,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut skipped = 0;
 
-    let kafka_brokers = env::var("KAFKA_BROKERS").unwrap_or_else(|_| "localhost:9092".to_string());
+    let kafka_brokers = env::var("KAFKA_BROKERS").unwrap_or_else(|_| "localhost:9094".to_string());
 
     let producer = ClientConfig::new()
         .set("bootstrap.servers", kafka_brokers.as_str())
@@ -65,16 +65,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let topic = format!("{}-ticks", region);
         let topic_str = topic.as_str();
         let produce_future = producer.send(
-            FutureRecord::to(topic_str)
-                .key(&record.id)
-                .payload(&buf),
+            FutureRecord::to(topic_str).key(&record.id).payload(&buf),
             Duration::from_secs(0),
         );
 
         match produce_future.await {
             Ok(delivery) => println!(
                 "Sent [t:{}, d:{}ms, s:{}]: {:?}",
-                record.trade_timestamp.unwrap_or_else(|| prost_types::Timestamp::default()).seconds,
+                record
+                    .trade_timestamp
+                    .unwrap_or_else(|| prost_types::Timestamp::default())
+                    .seconds,
                 record.delay,
                 skipped,
                 delivery

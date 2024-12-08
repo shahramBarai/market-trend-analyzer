@@ -33,6 +33,7 @@ services:
       - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT,PLAINTEXT:PLAINTEXT
       - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=0@kafka:9093
       - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE=false
     volumes:
       - ./configs/kafka:/configs
 
@@ -104,7 +105,7 @@ services:
       dockerfile: ./docker/dockerfiles/webapp/Dockerfile
     environment:
       - KAFKA_BROKERS=kafka:9092
-      - KAFKA_TOPICS=FR-tick,FR-ema,FR-advisories,NL-tick,NL-ema,NL-advisories,ETR-tick,ETR-ema,ETR-advisories
+      - KAFKA_TOPICS=FR-ticks,FR-ema,FR-advisories,NL-ticks,NL-ema,NL-advisories,ETR-ticks,ETR-ema,ETR-advisories
       - KAFKA_GROUP_ID=webapp
     restart: "no"
     volumes:

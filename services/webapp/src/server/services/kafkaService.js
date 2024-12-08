@@ -48,8 +48,8 @@ const startKafkaConsumer = async (io) => {
         } else if (topic.includes("ticks")) {
           const tick = decodeFinancialTick(message.value);
           // Emit to clients interested in financial ticks
-          io.to(`share_tick:${tick.id}`).emit(`${tick.id}-tick`, tick);
-          io.to(`share_tick:ALL`).emit(`ALL-tick`, tick);
+          io.to(`share_tick:${tick.id}`).emit(`${tick.id}-ticks`, tick);
+          io.to(`share_tick:ALL`).emit(`ALL-ticks`, tick);
         } else if (topic.includes("-ema")) {
           const ema = decodeEMAResult(message.value);
           // Emit to clients interested in EMA results
