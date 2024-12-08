@@ -22,13 +22,21 @@ echo "$topics" | while read -r topic; do
   partitions=$(echo "$topic" | grep -oP '"partitions":\s*\K\d+')
   replication=$(echo "$topic" | grep -oP '"replicationFactor":\s*\K\d+')
 
-  echo "Creating topic: $name with $partitions partitions and $replication replication factor..."
+  echo "Processing topic: $name"
 
+  # Try deleting if exists (won't fail if doesn't exist)
+  /opt/bitnami/kafka/bin/kafka-topics.sh --delete \
+    --bootstrap-server "$BROKER" \
+    --if-exists \
+    --topic "$name"
+
+  # Now create topic (will fail if can't create)
   /opt/bitnami/kafka/bin/kafka-topics.sh --create \
     --bootstrap-server "$BROKER" \
     --topic "$name" \
     --partitions "$partitions" \
-    --replication-factor "$replication" || {
+    --replication-factor "$replication" \
+    --if-not-exists || {
       echo "Failed to create topic: $name"
       exit 1
     }
