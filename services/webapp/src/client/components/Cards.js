@@ -32,8 +32,8 @@ export const BarChartCard = ({ className, share, socket }) => {
   const [data, setData] = useState([]);
 
   useEffect(() => {
-    const dataType = "tick";
-    const eventName = `${share}-tick`;
+    const dataType = "ticks";
+    const eventName = `${share}-ticks`;
 
     // Subscribe to the share
     socket.emit("subscribe", { share, dataType });
@@ -89,9 +89,24 @@ export const LineChardCard = ({ className = "", share, socket }) => {
       return fetch(`/api/historical?dataType=${dataType}&share=${share}`)
         .then((res) => res.json())
         .then((data) => {
-          setData(data.messages);
+          // convert tradeTimestamp { nanos, seconds } to (hours:minutes)
+          const newData = data.messages.map((message) => {
+            const tradeTimestamp = new Date(
+              message.tradeTimestamp.seconds * 1000
+            );
+            const hours = tradeTimestamp.getHours();
+            const minutes = tradeTimestamp.getMinutes();
+
+            return {
+              ...message,
+              tradeTimestamp: `${hours < 10 ? "0" + hours : hours}:${
+                minutes < 10 ? "0" + minutes : minutes
+              }`,
+            };
+          });
+          setData(newData);
           setLoading(false);
-          console.log("Historical data:", data.messages);
+          console.log("Historical data:", newData);
         })
         .catch((err) => console.error(err));
     };
@@ -139,7 +154,7 @@ export const LineChardCard = ({ className = "", share, socket }) => {
             bottom: 10,
           }}
         >
-          <XAxis dataKey="tradingDateTime" />
+          <XAxis dataKey="tradeTimestamp" />
           <YAxis />
           <CartesianGrid stroke="#94a3b8" strokeDasharray="5 5" />
           <Line type="monotone" dataKey="ema38" stroke="#1e293b" />
