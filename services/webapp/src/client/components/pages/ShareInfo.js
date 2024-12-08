@@ -2,10 +2,7 @@ import { Card, LineChard } from "../ChartCards";
 import { useEffect, useState } from "react";
 
 export default function ShareInfo({ socket, share }) {
-  const [ticksData, setTicksData] = useState([
-    { last: 2, tradeTimestamp: "00:00" },
-    { last: 2, tradeTimestamp: "00:00" },
-  ]);
+  const [ticksData, setTicksData] = useState([]);
   const [emaData, setEmaData] = useState([]);
   const [advisoryData, setAdvisoryData] = useState([]);
   const [emaLoading, setEmaLoading] = useState(true);
