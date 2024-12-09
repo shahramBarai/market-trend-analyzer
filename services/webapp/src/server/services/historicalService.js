@@ -12,7 +12,7 @@ const SnappyCodec = require("kafkajs-snappy");
 // Register Snappy codec
 CompressionCodecs[CompressionTypes.Snappy] = SnappyCodec;
 
-const KAFKA_BROKERS = process.env.KAFKA_BROKERS.split(",") || ["kafka:9094"];
+const KAFKA_BROKERS = process.env.KAFKA_BROKERS.split(",") || ["localhost:9094"];
 
 export async function getHistoricalMessages(topic, share) {
   const kafka = new Kafka({

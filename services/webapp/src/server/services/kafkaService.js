@@ -13,7 +13,7 @@ import {
 // Register Snappy codec
 CompressionCodecs[CompressionTypes.Snappy] = SnappyCodec;
 
-const KAFKA_BROKERS = process.env.KAFKA_BROKERS.split(",") || ["kafka:9094"];
+const KAFKA_BROKERS = process.env.KAFKA_BROKERS.split(",") || ["localhost:9094"];
 const KAFKA_TOPICS = process.env.KAFKA_TOPICS.split(",") || [];
 const KAFKA_GROUP_ID = process.env.KAFKA_GROUP_ID || "wepapp-group";
 
