@@ -47,7 +47,7 @@ object RegionalMarketAnalytics {
     val kafkaConsumerProps = new java.util.Properties()
     kafkaConsumerProps.put(
       ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,
-      "kafka:9092"
+      "kafka:9094"
     )
     kafkaConsumerProps.put(
       ConsumerConfig.GROUP_ID_CONFIG,
@@ -80,7 +80,7 @@ object RegionalMarketAnalytics {
     val emaProducerProps = new java.util.Properties()
     emaProducerProps.put(
       ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,
-      "kafka:9092"
+      "kafka:9094"
     )
     emaProducerProps.put(
       "compression.type",
@@ -106,7 +106,7 @@ object RegionalMarketAnalytics {
     val buyAdvisoryProducerProps = new java.util.Properties()
     buyAdvisoryProducerProps.put(
       ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,
-      "kafka:9092"
+      "kafka:9094"
     )
     buyAdvisoryProducerProps.put(
       "compression.type",

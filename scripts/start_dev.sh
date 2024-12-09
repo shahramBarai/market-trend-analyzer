@@ -54,3 +54,13 @@ check_success
 echo "Flink job started."
 
 echo "Development environment setup completed. To stop the services, run 'docker compose down'."
+
+# check if chose to run via docker or cargo using a flag --producer=docker
+if [ "$1" == "--producer=docker" ]; then
+    docker compose up -d producer
+    check_success
+else
+    cd services/producer
+    cargo run
+    check_success
+fi

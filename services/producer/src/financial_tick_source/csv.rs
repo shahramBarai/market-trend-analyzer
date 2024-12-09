@@ -14,14 +14,6 @@ use tokio::{
     task, time,
 };
 
-struct Record {
-    id: String,
-    event_timestamp: NaiveDateTime,
-    sec_type: String,
-    last: String,
-    trading_timestamp: Option<NaiveDateTime>,
-}
-
 #[derive(Debug)]
 struct RecordParsingError {
     message: String,
