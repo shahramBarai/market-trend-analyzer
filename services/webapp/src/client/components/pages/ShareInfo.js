@@ -18,13 +18,15 @@ export default function ShareInfo({ socket, share }) {
           );
           const hours = tradeTimestamp.getHours();
           const minutes = tradeTimestamp.getMinutes();
+          const seconds = tradeTimestamp.getSeconds();
 
           return {
             ...message,
             tradeTimestamp: tradeTimestamp.getTime(),
-            tradeTimeHHMM: `${hours < 10 ? "0" + hours : hours}:${
+            tradeTimeHHMMSS: `${hours < 10 ? "0" + hours : hours}:${
               minutes < 10 ? "0" + minutes : minutes
-            }`,
+            }
+              :${seconds < 10 ? "0" + seconds : seconds}`,
           };
         });
       })
@@ -59,7 +61,6 @@ export default function ShareInfo({ socket, share }) {
   };
 
   const handleTicksStreamData = (newData) => {
-    console.log("Received ticks data:", newData);
     setTicksData((prev) => {
       if (prev.length === 0) {
         return [newData];
@@ -157,7 +158,9 @@ export default function ShareInfo({ socket, share }) {
             <div className="isolate overflow-auto snap-end p-4 pt-0 text-sm">
               {advisoryQuery.data.map((advisory, index) => (
                 <div key={index} className="flex gap-2">
-                  <div className="text-gray-500">{advisory.tradeTimeHHMM}</div>
+                  <div className="text-gray-500">
+                    {advisory.tradeTimeHHMMSS}
+                  </div>
                   <div
                     className={`${
                       advisory.message === "Buy!"

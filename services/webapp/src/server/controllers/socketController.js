@@ -21,8 +21,8 @@ const handleSubscription = (socket, subscription) => {
     socket.join(`share_advis:${share}`);
   }
 
-  if (dataType === "tick") {
-    socket.join(`share_tick:${share}`);
+  if (dataType === "ticks") {
+    socket.join(`share_ticks:${share}`);
   }
 
   if (dataType === "ema") {
