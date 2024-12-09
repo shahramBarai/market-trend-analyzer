@@ -41,10 +41,10 @@ const startKafkaConsumer = async (io) => {
           const advisory = decodeBuyAdvisory(message.value);
           // Emit to clients interested in buy advisories
           io.to(`share_advis:${advisory.symbol}`).emit(
-            `${advisory.symbol}-advis`,
+            `${advisory.symbol}-advisories`,
             advisory
           );
-          io.to(`share_advis:ALL`).emit(`ALL-advis`, advisory);
+          io.to(`share_advis:ALL`).emit(`ALL-advisories`, advisory);
         } else if (topic.includes("ticks")) {
           const tick = decodeFinancialTick(message.value);
           // Emit to clients interested in financial ticks
