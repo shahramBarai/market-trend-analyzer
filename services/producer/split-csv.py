@@ -68,8 +68,8 @@ with open(filepath, newline='') as csvfile:
         files[id].close()
 
     # Create a json file which contains list of ids
-    with open(f'{shared_dir}/shares_name.json', 'w') as f:
-        f.write('{"shares_name": [')
+    with open(f'{shared_dir}/symbols.json', 'w') as f:
+        f.write('{"symbols": [')
         for id in files:
             f.write(f'"{id}"')
             if id != list(files.keys())[-1]:

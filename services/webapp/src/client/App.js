@@ -13,11 +13,11 @@ function App() {
 
   useEffect(() => {
     // Fetch the list of shares names
-    fetch("/api/shares_name")
+    fetch("/api/symbols")
       .then((res) => res.json())
       .then((data) => {
         setShares(
-          data.share_names.map((share) => ({ label: share, value: share }))
+          data.symbols.map((share) => ({ label: share, value: share }))
         );
       });
 

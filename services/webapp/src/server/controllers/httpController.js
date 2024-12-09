@@ -20,9 +20,9 @@ export async function historicalHandler(req, res) {
   }
 }
 
-// Returns the list of shares from ../shared/shares_name.json as JSON
+// Returns the list of shares from ../shared/symbols.json as JSON
 export async function getSharesName(req, res) {
-  res.sendFile("shares_name.json", {
+  res.sendFile("symbols.json", {
     root: "../shared",
     headers: {
       "Content-Type": "application/json",

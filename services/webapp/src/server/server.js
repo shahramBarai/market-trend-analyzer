@@ -30,8 +30,8 @@ app.get("*", (req, res, next) => {
 // Define the HTTP endpoint for historical data
 app.get("/api/historical", historicalHandler);
 
-// Define the HTTP endpoint for the shares_name.json file
-app.get("/api/shares_name", getSharesName);
+// Define the HTTP endpoint for the symbols.json file
+app.get("/api/symbols", getSharesName);
 
 // Create HTTP server from express app
 const server = createServer(app);
