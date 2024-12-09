@@ -17,7 +17,7 @@ function App() {
       .then((res) => res.json())
       .then((data) => {
         setShares(
-          data.share_names.map((share) => ({ label: share, value: share }))
+          data.shares_name.map((share) => ({ label: share, value: share }))
         );
       });
 
