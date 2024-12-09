@@ -9,3 +9,5 @@ build
 .metals/
 .bsp/
 .bloop/
+
+shared/shares_name.json
