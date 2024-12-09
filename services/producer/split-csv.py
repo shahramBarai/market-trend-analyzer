@@ -13,11 +13,13 @@ rows = []
 parser = argparse.ArgumentParser()
 parser.add_argument('-i', '--input_file', help='Input file', default='data/day-08-11-21.csv')
 parser.add_argument('-o', '--output_dir', help='Output directory', default='data/day-08-11-21')
+parser.add_argument('-d', '--shared_dir', help='Shared directory', default='../../shared')
 parser.add_argument('-s', '--split_by_region', help='Split by region', action='store_true', default=False)
 args = parser.parse_args()
 
 filepath = args.input_file
 output_dir = args.output_dir
+shared_dir = args.shared_dir
 split_by_region = args.split_by_region
 
 with open(filepath, newline='') as csvfile:
@@ -46,13 +48,12 @@ with open(filepath, newline='') as csvfile:
             # Create a new file for the ID
             if split_by_region:
                 # Split by exchange region and shares
-                shares = id.split('.')[0]
                 region = id.split('.')[1]
                 # Create a directory for the region if it doesn't exist
                 if not os.path.exists(f'{output_dir}/{region}'):
                     os.makedirs(f'{output_dir}/{region}')
                 # Create a file for shares in the region
-                files[id] = open(f'{output_dir}/{region}/{shares}.csv', 'w')
+                files[id] = open(f'{output_dir}/{region}/{id}.csv', 'w')
             else:
                 # Split by id only
                 files[id] = open(f'{output_dir}/{id}.csv', 'w')
@@ -65,3 +66,13 @@ with open(filepath, newline='') as csvfile:
     # Close all files
     for id in files:
         files[id].close()
+
+    # Create a json file which contains list of ids
+    with open(f'{shared_dir}/shares_name.json', 'w') as f:
+        f.write('{"shares_name": [')
+        for id in files:
+            f.write(f'"{id}"')
+            if id != list(files.keys())[-1]:
+                f.write(',')
+        f.write(']}')
+        f.close()
