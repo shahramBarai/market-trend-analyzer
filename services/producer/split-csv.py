@@ -86,10 +86,10 @@ with open(filepath, newline='') as csvfile:
     spliting_time = time.time() - start_time
     print("Splitting done!")
 
-    print("\nCreating shares_name.json...")
+    print("\nCreating symbols.json...")
     # Create a json file which contains list of ids
-    with open(f'{shared_dir}/shares_name.json', 'w') as f:
-        f.write('{"shares_name": [')
+    with open(f'{shared_dir}/symbols.json', 'w') as f:
+        f.write('{"symbols": [')
         all_ids = list(files.keys())
         for i, share_id in enumerate(all_ids):
             f.write(f'"{share_id}"')
@@ -97,7 +97,7 @@ with open(filepath, newline='') as csvfile:
                 f.write(',')
         f.write(']}')
         f.close()
-    print(f"Creating shares_name.json done!")
+    print(f"Creating symbols.json done!")
 
     # Print the top 10 shares with the most rows
     sorted_counts = sorted(counts.items(), key=lambda x: x[1], reverse=True)

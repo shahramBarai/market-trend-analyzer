@@ -6,6 +6,7 @@ import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction
 import org.apache.flink.streaming.api.scala.function.RichWindowFunction
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow
 import org.apache.flink.util.Collector
+import org.slf4j.{Logger, LoggerFactory}
 
 class EMACalculator
     extends RichWindowFunction[
@@ -15,6 +16,7 @@ class EMACalculator
       TimeWindow // Window type
     ] {
 
+  private val logger: Logger = LoggerFactory.getLogger("EMACalculator")
   private var ema38State: ValueState[Double] = _
   private var ema100State: ValueState[Double] = _
 
@@ -26,6 +28,8 @@ class EMACalculator
 
     ema38State = getRuntimeContext.getState(ema38Descriptor)
     ema100State = getRuntimeContext.getState(ema100Descriptor)
+
+    logger.info("EMACalculator initialized")
   }
 
   override def apply(

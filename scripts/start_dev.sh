@@ -49,7 +49,7 @@ echo "All services started."
 
 # Run the Flink job in background
 echo "Running Flink job..."
-docker exec -d flink-jobmanager bash -c "flink run /opt/flink/usrlib/scala-2.12/flink-scala-analytics-assembly-0.1.0-SNAPSHOT.jar"
+docker exec flink-jobmanager bash -c "flink run -d /opt/flink/usrlib/scala-2.12/flink-scala-analytics-assembly-0.1.0-SNAPSHOT.jar"
 check_success
 echo "Flink job started."
 

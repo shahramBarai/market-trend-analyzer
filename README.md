@@ -8,7 +8,7 @@ Scalable Systems and Data Management Course Project: Detecting Trading Trends in
 
 Download the csv file(s) from the following [link](https://zenodo.org/records/6382482) and place them in the `services/producer/data` folder.
 
-Run the following command to split the csv file into smaller chunks and create shares_name.json file into the `shared` folder:
+Run the following command to split the csv file into smaller chunks and create symbols.json file into the `shared` folder:
 
 ```bash
 python3 services/producer/split-csv.py -i <file_name>

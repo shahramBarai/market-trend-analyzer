@@ -10,4 +10,4 @@ build
 .bsp/
 .bloop/
 
-shared/shares_name.json
+shared/symbols.json
