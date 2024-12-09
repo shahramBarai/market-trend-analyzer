@@ -19,3 +19,13 @@ export async function historicalHandler(req, res) {
     res.status(500).json({ error: "Internal server error" });
   }
 }
+
+// Returns the list of shares from ../shared/shares_name.json as JSON
+export async function getSharesName(req, res) {
+  res.sendFile("shares_name.json", {
+    root: "../shared",
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+}

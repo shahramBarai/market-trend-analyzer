@@ -5,7 +5,10 @@ import { fileURLToPath } from "url";
 import { initializeSocket } from "./services/socketService.js";
 import { loadProtobuf } from "./helpers/protobufLoader.js";
 import { startKafkaConsumer } from "./services/kafkaService.js";
-import { historicalHandler } from "./controllers/httpController.js";
+import {
+  historicalHandler,
+  getSharesName,
+} from "./controllers/httpController.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -26,6 +29,9 @@ app.get("*", (req, res, next) => {
 
 // Define the HTTP endpoint for historical data
 app.get("/api/historical", historicalHandler);
+
+// Define the HTTP endpoint for the shares_name.json file
+app.get("/api/shares_name", getSharesName);
 
 // Create HTTP server from express app
 const server = createServer(app);

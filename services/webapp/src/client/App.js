@@ -9,7 +9,18 @@ const queryClient = new QueryClient();
 function App() {
   const socketRef = useRef(null);
   const [connected, setConnected] = useState(false);
+  const [shares, setShares] = useState([]);
+
   useEffect(() => {
+    // Fetch the list of shares names
+    fetch("/api/shares_name")
+      .then((res) => res.json())
+      .then((data) => {
+        setShares(
+          data.share_names.map((share) => ({ label: share, value: share }))
+        );
+      });
+
     // Connect to the Socket.io server
     socketRef.current = io("/", {
       path: "/api/socket.io",
@@ -39,19 +50,7 @@ function App() {
       <div className="container mx-auto p-4 flex flex-col gap-3">
         <div className="flex justify-between items-center">
           <h2 className="text-xl font-semibold">Market Data</h2>
-          <Combobox
-            value={value}
-            setValue={setValue}
-            items={[
-              { label: "IFCSG.FR", value: "IFCSG.FR" },
-              { label: "SRP.FR", value: "SRP.FR" },
-              { label: "AAPL", value: "AAPL" },
-              { label: "GOOGL", value: "GOOGL" },
-              { label: "MSFT", value: "MSFT" },
-              { label: "AMZN", value: "AMZN" },
-              { label: "TSLA", value: "TSLA" },
-            ]}
-          />
+          <Combobox value={value} setValue={setValue} items={shares} />
         </div>
         {/* Display financial ticks */}
         {value === "" ? (
