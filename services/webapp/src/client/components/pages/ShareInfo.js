@@ -119,7 +119,11 @@ export default function ShareInfo({ socket, share }) {
             {share} - Last Price:
           </div>
           {ticksData.length === 0 ? (
-            <div className="text-gray-500">no data</div>
+            <div
+              className={`w-1/2 h-full rounded-lg flex items-center justify-center text-gray-500 bg-gray-100`}
+            >
+              no data
+            </div>
           ) : (
             <div
               className={`w-1/2 h-full rounded-lg flex items-center justify-center
