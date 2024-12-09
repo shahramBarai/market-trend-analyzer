@@ -1,13 +1,11 @@
 import { Card, LineChard } from "../ChartCards";
 import { useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 export default function ShareInfo({ socket, share }) {
+  const queryClient = useQueryClient();
+
   const [ticksData, setTicksData] = useState([]);
-  const [emaData, setEmaData] = useState([]);
-  const [advisoryData, setAdvisoryData] = useState([]);
-  const [emaLoading, setEmaLoading] = useState(true);
-  const [ticksLoading, setTicksLoading] = useState(true);
-  const [advisoryLoading, setAdvisoryLoading] = useState(true);
 
   const fetchHistoricalData = async (dataType) => {
     return fetch(`/api/historical?dataType=${dataType}&share=${share}`)
@@ -30,14 +28,28 @@ export default function ShareInfo({ socket, share }) {
       });
   };
 
+  const emaQuery = useQuery({
+    queryKey: ["ema", share],
+    queryFn: () => fetchHistoricalData("ema"),
+  });
+
+  const advisoryQuery = useQuery({
+    queryKey: ["advisories", share],
+    queryFn: () => fetchHistoricalData("advisories"),
+  });
+
   const handleEmaStreamData = (newData) => {
-    console.log("Received EMA data:", newData);
-    setEmaData((prev) => [...prev, newData]);
+    queryClient.setQueryData(["ema", share], (prev) => [
+      ...(prev || []),
+      newData,
+    ]);
   };
 
   const handleAdvisoryStreamData = (newData) => {
-    console.log("Received advisory data:", newData);
-    setAdvisoryData((prev) => [...prev, newData]);
+    queryClient.setQueryData(["advisories", share], (prev) => [
+      ...(prev || []),
+      newData,
+    ]);
   };
 
   const handleTicksStreamData = (newData) => {
@@ -54,31 +66,15 @@ export default function ShareInfo({ socket, share }) {
   };
 
   useEffect(() => {
-    fetchHistoricalData("ema")
-      .then((data) => {
-        console.log("Historical EMA data:", data);
+    if (emaQuery.isSuccess) {
+      socket.emit("subscribe", { share, dataType: "ema" });
+      socket.on(`${share}-ema`, handleEmaStreamData);
+    }
 
-        setEmaData(data);
-        setEmaLoading(false);
-
-        // Subscribe to ema steams data
-        socket.emit("subscribe", { share, dataType: "ema" });
-        socket.on(`${share}-ema`, handleEmaStreamData);
-      })
-      .catch((err) => console.error(err));
-
-    fetchHistoricalData("advisories")
-      .then((data) => {
-        console.log("Historical advisory data:", data);
-
-        setAdvisoryData(data);
-        setAdvisoryLoading(false);
-
-        // Subscribe to advisory steams data
-        socket.emit("subscribe", { share, dataType: "advisories" });
-        socket.on(`${share}-advisories`, handleAdvisoryStreamData);
-      })
-      .catch((err) => console.error(err));
+    if (emaQuery.isSuccess) {
+      socket.emit("subscribe", { share, dataType: "advisories" });
+      socket.on(`${share}-advisories`, handleAdvisoryStreamData);
+    }
 
     // Subscribe to ticks steams data
     socket.emit("subscribe", { share, dataType: "ticks" });
@@ -90,24 +86,26 @@ export default function ShareInfo({ socket, share }) {
       socket.off(`${share}-ema`, handleEmaStreamData);
       socket.emit("unsubscribe", { share, dataType: "advisories" });
       socket.off(`${share}-advisories`, handleAdvisoryStreamData);
+      socket.emit("unsubscribe", { share, dataType: "ticks" });
+      socket.off(`${share}-ticks`, handleTicksStreamData);
     };
-  }, [share, socket]);
+  }, [share, socket, emaQuery.isLoading, advisoryQuery.isLoading]);
 
   return (
     <div className="flex gap-3">
       <Card className="w-2/3" title={`${share} - EMA`}>
-        {emaLoading ? (
+        {emaQuery.isLoading ? (
           <div className="flex items-center justify-center h-full text-gray-500">
             Loading...
           </div>
-        ) : emaData.length === 0 ? (
+        ) : emaQuery.data?.length === 0 ? (
           <div className="flex items-center justify-center h-full text-gray-500">
             No data
           </div>
         ) : (
           <LineChard
             className="text-sm"
-            data={emaData}
+            data={emaQuery.data}
             dataKeys={["ema38", "ema100"]}
             xAxisDataKey="tradeTimestamp"
           />
@@ -140,17 +138,17 @@ export default function ShareInfo({ socket, share }) {
           )}
         </div>
         <Card className="h-full" title={`${share} - Advisories`}>
-          {advisoryLoading ? (
+          {advisoryQuery.isLoading ? (
             <div className="flex items-center justify-center h-full text-gray-500">
               Loading...
             </div>
-          ) : advisoryData.length === 0 ? (
+          ) : advisoryQuery.data?.length === 0 ? (
             <div className="flex items-center justify-center h-full text-gray-500">
               No data
             </div>
           ) : (
             <div className="isolate overflow-auto snap-end p-4 pt-0 text-sm">
-              {advisoryData.map((advisory, index) => (
+              {advisoryQuery.data.map((advisory, index) => (
                 <div key={index} className="flex gap-2">
                   <div className="text-gray-500">{advisory.tradeTimestamp}</div>
                   <div

@@ -2,6 +2,9 @@ import React, { useEffect, useRef, useState } from "react";
 import { io } from "socket.io-client";
 import Combobox from "./components/Combobox";
 import ShareInfo from "./components/pages/ShareInfo";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
+const queryClient = new QueryClient();
 
 function App() {
   const socketRef = useRef(null);
@@ -32,30 +35,32 @@ function App() {
   }
 
   return (
-    <div className="container mx-auto p-4 flex flex-col gap-3">
-      <div className="flex justify-between items-center">
-        <h2 className="text-xl font-semibold">Market Data</h2>
-        <Combobox
-          value={value}
-          setValue={setValue}
-          items={[
-            { label: "IFCSG.FR", value: "IFCSG.FR" },
-            { label: "SRP.FR", value: "SRP.FR" },
-            { label: "AAPL", value: "AAPL" },
-            { label: "GOOGL", value: "GOOGL" },
-            { label: "MSFT", value: "MSFT" },
-            { label: "AMZN", value: "AMZN" },
-            { label: "TSLA", value: "TSLA" },
-          ]}
-        />
+    <QueryClientProvider client={queryClient}>
+      <div className="container mx-auto p-4 flex flex-col gap-3">
+        <div className="flex justify-between items-center">
+          <h2 className="text-xl font-semibold">Market Data</h2>
+          <Combobox
+            value={value}
+            setValue={setValue}
+            items={[
+              { label: "IFCSG.FR", value: "IFCSG.FR" },
+              { label: "SRP.FR", value: "SRP.FR" },
+              { label: "AAPL", value: "AAPL" },
+              { label: "GOOGL", value: "GOOGL" },
+              { label: "MSFT", value: "MSFT" },
+              { label: "AMZN", value: "AMZN" },
+              { label: "TSLA", value: "TSLA" },
+            ]}
+          />
+        </div>
+        {/* Display financial ticks */}
+        {value === "" ? (
+          <div className="text-center text-gray-500">Select a stock</div>
+        ) : (
+          <ShareInfo socket={socketRef.current} share={value} />
+        )}
       </div>
-      {/* Display financial ticks */}
-      {value === "" ? (
-        <div className="text-center text-gray-500">Select a stock</div>
-      ) : (
-        <ShareInfo socket={socketRef.current} share={value} />
-      )}
-    </div>
+    </QueryClientProvider>
   );
 }
 
