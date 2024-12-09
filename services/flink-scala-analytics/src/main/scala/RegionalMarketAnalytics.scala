@@ -10,6 +10,37 @@ import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindo
 import org.apache.flink.streaming.api.windowing.time.Time
 import java.time.{LocalDateTime, ZoneOffset}
 import java.time.format.DateTimeFormatter
+import org.apache.flink.streaming.api.CheckpointingMode
+import java.util.Optional
+import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner
+
+class BuyAdvisoryKeyBasedPartitioner extends FlinkKafkaPartitioner[BuyAdvisory] {
+  override def partition(
+      record: BuyAdvisory,
+      keyBytes: Array[Byte],
+      valueBytes: Array[Byte],
+      targetTopic: String,
+      partitions: Array[Int]
+  ): Int = {
+    val keyHash = record.symbol.hashCode
+    val partitionIndex = Math.abs(keyHash) % partitions.length
+    partitionIndex
+  }
+}
+
+class EMAResultKeyBasedPartitioner extends FlinkKafkaPartitioner[EMAResult] {
+  override def partition(
+      record: EMAResult,
+      keyBytes: Array[Byte],
+      valueBytes: Array[Byte],
+      targetTopic: String,
+      partitions: Array[Int]
+  ): Int = {
+    val keyHash = record.symbol.hashCode
+    val partitionIndex = Math.abs(keyHash) % partitions.length
+    partitionIndex
+  }
+}
 
 object RegionalMarketAnalytics {
 
@@ -42,12 +73,19 @@ object RegionalMarketAnalytics {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     env.setParallelism(parallelism)
+    env.enableCheckpointing(5000)
+    env.getCheckpointConfig.setCheckpointingMode(
+      CheckpointingMode.EXACTLY_ONCE
+    )
+    env.getCheckpointConfig.setCheckpointTimeout(600000)
+    env.getCheckpointConfig.setMinPauseBetweenCheckpoints(1000)
+    env.getCheckpointConfig.setMaxConcurrentCheckpoints(1)
 
     // Kafka consumer properties
     val kafkaConsumerProps = new java.util.Properties()
     kafkaConsumerProps.put(
       ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,
-      "kafka:9092"
+      "localhost:9094"
     )
     kafkaConsumerProps.put(
       ConsumerConfig.GROUP_ID_CONFIG,
@@ -76,14 +114,18 @@ object RegionalMarketAnalytics {
       .window(TumblingEventTimeWindows.of(windowSize, windowOffset))
       .apply(new EMACalculator)
 
-    // Kafka producer properties for EMA results
+    // Kafka producer properties for EMAs
     val emaProducerProps = new java.util.Properties()
     emaProducerProps.put(
       ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,
-      "kafka:9092"
+      "localhost:9094"
     )
     emaProducerProps.put(
-      "compression.type",
+      ProducerConfig.TRANSACTION_TIMEOUT_CONFIG,
+      "900000"
+    )
+    emaProducerProps.put(
+      ProducerConfig.COMPRESSION_TYPE_CONFIG,
       "snappy"
     )
 
@@ -91,7 +133,10 @@ object RegionalMarketAnalytics {
     val emaProducer = new FlinkKafkaProducer[EMAResult](
       outputTopic_EMA,
       new EMAResultSerializer(),
-      emaProducerProps
+      emaProducerProps,
+      new EMAResultKeyBasedPartitioner(),
+      FlinkKafkaProducer.Semantic.EXACTLY_ONCE,
+      FlinkKafkaProducer.DEFAULT_KAFKA_PRODUCERS_POOL_SIZE
     )
 
     // Add sink to Kafka for EMA results
@@ -102,14 +147,18 @@ object RegionalMarketAnalytics {
       .keyBy(_.symbol)
       .flatMap(new CrossoverDetector)
 
-    // Kafka producer properties for buy advisories
+    // Kafka producer properties for EMAs
     val buyAdvisoryProducerProps = new java.util.Properties()
     buyAdvisoryProducerProps.put(
       ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,
-      "kafka:9092"
+      "localhost:9094"
     )
     buyAdvisoryProducerProps.put(
-      "compression.type",
+      ProducerConfig.TRANSACTION_TIMEOUT_CONFIG,
+      "900000"
+    )
+    buyAdvisoryProducerProps.put(
+      ProducerConfig.COMPRESSION_TYPE_CONFIG,
       "snappy"
     )
 
@@ -117,7 +166,10 @@ object RegionalMarketAnalytics {
     val buyAdvisoryProducer = new FlinkKafkaProducer[BuyAdvisory](
       outputTopic_BuyAdvisory,
       new BuyAdvisorySerializer(),
-      buyAdvisoryProducerProps
+      buyAdvisoryProducerProps,
+      new BuyAdvisoryKeyBasedPartitioner(),
+      FlinkKafkaProducer.Semantic.EXACTLY_ONCE,
+      FlinkKafkaProducer.DEFAULT_KAFKA_PRODUCERS_POOL_SIZE
     )
 
     // Add sink to Kafka for buy advisories
