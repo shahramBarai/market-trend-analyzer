@@ -9,6 +9,7 @@ import {
   YAxis,
   LineChart,
   Line,
+  Tooltip,
 } from "recharts";
 
 export const Card = ({ className, title, children }) => {
@@ -69,6 +70,16 @@ export const LineChard = ({
         }}
       >
         <CartesianGrid stroke="#94a3b8" strokeDasharray="5 5" />
+        <Tooltip
+          labelFormatter={(time) => {
+            const d = new Date(time);
+            return d.toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            });
+          }}
+          formatter={(value) => value.toFixed(2)}
+        />
         <XAxis
           dataKey={xAxisDataKey}
           type="number"
