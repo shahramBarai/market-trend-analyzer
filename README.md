@@ -9,15 +9,17 @@ Download the csv file(s) from the following [link](https://zenodo.org/records/63
 Run the following command to split the csv file into smaller chunks and create shares_name.json file into the `shared` folder:
 
 ```bash
-python3 services/producer/split_csv.py -i <file_name>
+python3 services/producer/split-csv.py -i <file_name>
 ```
 
 Then, run the following command to start the project:
 
 ```bash
-chmod +x scripts/start_dev.sh
-
 ./scripts/start_dev.sh
+```
+or 
+```bash
+./scripts/start_dev.sh --producer=docker
 ```
 
 It will start the project in development mode printing the logs to the console. Web application will be available at `http://localhost:3000/`.
