@@ -1,6 +1,7 @@
-import { Card, LineChard } from "../ChartCards";
+import { Card } from "../ChartCards";
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import EmaChartCard from "./EmaChartCard";
 
 export default function ShareInfo({ socket, share }) {
   const queryClient = useQueryClient();
@@ -17,14 +18,21 @@ export default function ShareInfo({ socket, share }) {
           );
           const hours = tradeTimestamp.getHours();
           const minutes = tradeTimestamp.getMinutes();
+          const seconds = tradeTimestamp.getSeconds();
 
           return {
             ...message,
-            tradeTimestamp: `${hours < 10 ? "0" + hours : hours}:${
+            tradeTimestamp: tradeTimestamp.getTime(),
+            tradeTimeHHMMSS: `${hours < 10 ? "0" + hours : hours}:${
               minutes < 10 ? "0" + minutes : minutes
-            }`,
+            }
+              :${seconds < 10 ? "0" + seconds : seconds}`,
           };
         });
+      })
+      .catch((error) => {
+        console.error("Error fetching historical data:", error);
+        throw new Error("Error fetching historical data");
       });
   };
 
@@ -53,7 +61,6 @@ export default function ShareInfo({ socket, share }) {
   };
 
   const handleTicksStreamData = (newData) => {
-    console.log("Received ticks data:", newData);
     setTicksData((prev) => {
       if (prev.length === 0) {
         return [newData];
@@ -93,24 +100,21 @@ export default function ShareInfo({ socket, share }) {
 
   return (
     <div className="flex gap-3">
-      <Card className="w-2/3" title={`${share} - EMA`}>
-        {emaQuery.isLoading ? (
+      {emaQuery.isLoading ? (
+        <Card className="w-2/3" title={`${share} - EMA`}>
           <div className="flex items-center justify-center h-full text-gray-500">
             Loading...
           </div>
-        ) : emaQuery.data?.length === 0 ? (
+        </Card>
+      ) : emaQuery.data?.length === 0 ? (
+        <Card className="w-2/3" title={`${share} - EMA`}>
           <div className="flex items-center justify-center h-full text-gray-500">
             No data
           </div>
-        ) : (
-          <LineChard
-            className="text-sm"
-            data={emaQuery.data}
-            dataKeys={["ema38", "ema100"]}
-            xAxisDataKey="tradeTimestamp"
-          />
-        )}
-      </Card>
+        </Card>
+      ) : (
+        <EmaChartCard share={share} data={emaQuery?.data ?? []} />
+      )}
       <div className="w-1/3 flex flex-col gap-3">
         <div className="h-20 rounded-xl border shadow-sm p-4 flex items-center justify-between text-sm">
           <div className="tracking-tight font-medium">
@@ -154,7 +158,9 @@ export default function ShareInfo({ socket, share }) {
             <div className="isolate overflow-auto snap-end p-4 pt-0 text-sm">
               {advisoryQuery.data.map((advisory, index) => (
                 <div key={index} className="flex gap-2">
-                  <div className="text-gray-500">{advisory.tradeTimestamp}</div>
+                  <div className="text-gray-500">
+                    {advisory.tradeTimeHHMMSS}
+                  </div>
                   <div
                     className={`${
                       advisory.message === "Buy!"

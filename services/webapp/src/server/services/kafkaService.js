@@ -13,7 +13,9 @@ import {
 // Register Snappy codec
 CompressionCodecs[CompressionTypes.Snappy] = SnappyCodec;
 
-const KAFKA_BROKERS = process.env.KAFKA_BROKERS.split(",") || ["localhost:9094"];
+const KAFKA_BROKERS = process.env.KAFKA_BROKERS.split(",") || [
+  "localhost:9094",
+];
 const KAFKA_TOPICS = process.env.KAFKA_TOPICS.split(",") || [];
 const KAFKA_GROUP_ID = process.env.KAFKA_GROUP_ID || "wepapp-group";
 
@@ -48,8 +50,8 @@ const startKafkaConsumer = async (io) => {
         } else if (topic.includes("ticks")) {
           const tick = decodeFinancialTick(message.value);
           // Emit to clients interested in financial ticks
-          io.to(`share_tick:${tick.id}`).emit(`${tick.id}-ticks`, tick);
-          io.to(`share_tick:ALL`).emit(`ALL-ticks`, tick);
+          io.to(`share_ticks:${tick.id}`).emit(`${tick.id}-ticks`, tick);
+          io.to(`share_ticks:ALL`).emit(`ALL-ticks`, tick);
         } else if (topic.includes("-ema")) {
           const ema = decodeEMAResult(message.value);
           // Emit to clients interested in EMA results
