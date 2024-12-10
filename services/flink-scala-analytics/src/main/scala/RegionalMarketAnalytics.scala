@@ -275,6 +275,9 @@ object RegionalMarketAnalytics {
         .build()
     )
 
+    // Add sink to TimescaleDB for buy advisories
+    buyAdvisoryStream.addSink(buyAdvisoryJdbcSink)
+
     // Execute the Flink job
     env.execute(s"Market Analytics Job for Region $region")
   }
