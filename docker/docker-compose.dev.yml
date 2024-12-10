@@ -79,6 +79,19 @@ services:
     depends_on:
       - flink-jobmanager
 
+  # ------ TimescaleDB ------- #
+  timescaledb:
+    image: timescale/timescaledb:2.17.2-pg16
+    container_name: timescaledb
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: analytics
+    volumes:
+      - ./configs/db-init:/docker-entrypoint-initdb.d
+
   # ------ Producer ------- #
   producer:
     container_name: producer
@@ -108,6 +121,11 @@ services:
       - KAFKA_BROKERS=kafka:9092
       - KAFKA_TOPICS=FR-ticks,FR-ema,FR-advisories,NL-ticks,NL-ema,NL-advisories,ETR-ticks,ETR-ema,ETR-advisories
       - KAFKA_GROUP_ID=webapp
+      - TIMESCALEDB_HOST=timescaledb
+      - TIMESCALEDB_PORT=5432
+      - TIMESCALEDB_USER=postgres
+      - TIMESCALEDB_PASSWORD=password
+      - TIMESCALEDB_DB=analytics
     restart: "no"
     volumes:
       - ../services/webapp:/app

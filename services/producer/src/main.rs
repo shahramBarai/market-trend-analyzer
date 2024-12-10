@@ -25,7 +25,7 @@ fn timestamp_diff_ms(t1: prost_types::Timestamp, t2: prost_types::Timestamp) -> 
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut fin_tick_source = CSVSource::new(100);
 
-    let topic = "08-11-2021 17:00:00";
+    let topic = "08-11-2021 10:00:00";
     let mut receiver = fin_tick_source.subscribe(topic).await?;
     let time_offset = fin_tick_source.csv_get_time_offset();
 

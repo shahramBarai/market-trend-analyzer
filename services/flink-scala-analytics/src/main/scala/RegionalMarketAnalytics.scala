@@ -17,8 +17,15 @@ import org.apache.flink.streaming.api.CheckpointingMode
 import java.util.Optional
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner
 import org.apache.flink.api.java.utils.ParameterTool
+import org.apache.flink.connector.jdbc.{
+  JdbcConnectionOptions,
+  JdbcStatementBuilder,
+  JdbcSink
+}
+import java.time.Instant
 
-class BuyAdvisoryKeyBasedPartitioner extends FlinkKafkaPartitioner[BuyAdvisory] {
+class BuyAdvisoryKeyBasedPartitioner
+    extends FlinkKafkaPartitioner[BuyAdvisory] {
   override def partition(
       record: BuyAdvisory,
       keyBytes: Array[Byte],
@@ -47,6 +54,9 @@ class EMAResultKeyBasedPartitioner extends FlinkKafkaPartitioner[EMAResult] {
 }
 
 object RegionalMarketAnalytics {
+  val timescaleDBUrl = "jdbc:postgresql://localhost:5432/analytics"
+  val timescaleDBUser = "postgres"
+  val timescaleDBPassword = "password"
 
   def main(args: Array[String]): Unit = {
     val logger: Logger = LoggerFactory.getLogger("RegionalMarketAnalytics")
@@ -65,7 +75,7 @@ object RegionalMarketAnalytics {
           outputTopic_EMA,
           outputTopic_BuyAdvisory,
           parallelism = 1,
-          kafkaBrokers = "kafka:9092"
+          kafkaBrokers = "localhost:9094"
         )
     }
   }
@@ -154,6 +164,47 @@ object RegionalMarketAnalytics {
     // Add sink to Kafka for EMA results
     emaStream.addSink(emaProducer)
 
+    // Define JDBC Sink for EMA Results
+    val emaJdbcSink = JdbcSink.sink[EMAResult](
+      """
+        INSERT INTO ema_results (symbol, ema38, ema100, trade_timestamp)
+        VALUES (?, ?, ?, ?)
+      """,
+      new JdbcStatementBuilder[EMAResult] {
+        override def accept(
+            statement: java.sql.PreparedStatement,
+            record: EMAResult
+        ): Unit = {
+          record.tradeTimestamp match {
+            case Some(timestamp) => {
+              statement.setString(1, record.symbol)
+              statement.setDouble(2, record.ema38)
+              statement.setDouble(3, record.ema100)
+              statement.setTimestamp(
+                4,
+                java.sql.Timestamp.from(
+                  Instant.ofEpochSecond(timestamp.seconds, timestamp.nanos)
+                )
+              )
+            }
+            case None => {
+              // Should not happen if the EMACalculator is timestamping records
+              logger.warn(s"Skipping EMA record: Missing trade timestamp for symbol: ${record.symbol}")
+            }
+          }
+        }
+      },
+      new JdbcConnectionOptions.JdbcConnectionOptionsBuilder()
+        .withUrl(timescaleDBUrl)
+        .withDriverName("org.postgresql.Driver")
+        .withUsername(timescaleDBUser)
+        .withPassword(timescaleDBPassword)
+        .build()
+    )
+
+    // Add sink to TimescaleDB for EMA results
+    emaStream.addSink(emaJdbcSink)
+
     // Detect crossovers and generate buy advisories
     val buyAdvisoryStream = emaStream
       .keyBy(_.symbol)
@@ -186,6 +237,43 @@ object RegionalMarketAnalytics {
 
     // Add sink to Kafka for buy advisories
     buyAdvisoryStream.addSink(buyAdvisoryProducer)
+
+    // Define JDBC Sink for Buy Advisories
+    val buyAdvisoryJdbcSink = JdbcSink.sink[BuyAdvisory](
+      """
+        INSERT INTO buy_advisories (symbol, trade_timestamp, advice)
+        VALUES (?, ?, ?)
+      """,
+      new JdbcStatementBuilder[BuyAdvisory] {
+        override def accept(
+            statement: java.sql.PreparedStatement,
+            record: BuyAdvisory
+        ): Unit = {
+          record.tradeTimestamp match {
+            case Some(timestamp) => {
+              statement.setString(1, record.symbol)
+              statement.setTimestamp(
+                2,
+                java.sql.Timestamp.from(
+                  Instant.ofEpochSecond(timestamp.seconds, timestamp.nanos)
+                )
+              )
+              statement.setString(3, record.message)
+            }
+            case None => {
+              // Should not happen if the EMACalculator is timestamping records
+              logger.warn(s"Skipping advisory record: Missing trade timestamp for symbol: ${record.symbol}")
+            }
+          }
+        }
+      },
+      new JdbcConnectionOptions.JdbcConnectionOptionsBuilder()
+        .withUrl(timescaleDBUrl)
+        .withDriverName("org.postgresql.Driver")
+        .withUsername(timescaleDBUser)
+        .withPassword(timescaleDBPassword)
+        .build()
+    )
 
     // Execute the Flink job
     env.execute(s"Market Analytics Job for Region $region")
