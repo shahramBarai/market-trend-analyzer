@@ -1,9 +1,12 @@
-import { useMemo, useState } from "react";
-import { Card, LineChard } from "../ChartCards";
+import { useEffect, useMemo, useState } from "react";
+import { Card, ResponsiveLineChart } from "../ChartCards";
 import { Button } from "../Button";
 
 export default function EmaChartCard({ share, data }) {
-  const [startTime, setStartTime] = useState(data[0].tradeTimestamp);
+  const [startTime, setStartTime] = useState(
+    (data[data.length - 1]?.tradeTimestamp ?? new Date().getTime()) -
+      15 * 60 * 1000
+  );
 
   // 1 hour window = 3600 seconds = 3600 * 1000 ms = 3600000 ms
   const windowDuration = 3600000;
@@ -18,14 +21,6 @@ export default function EmaChartCard({ share, data }) {
     }
     return ticksArray;
   }, [startTime, endTime]);
-
-  // Filter or map your data so it fits into [startTime, endTime] if needed
-  // Or just show all data; Recharts will handle points out of domain.
-  const filteredData = useMemo(() => {
-    return data.filter(
-      (d) => d.tradeTimestamp >= startTime && d.tradeTimestamp <= endTime
-    );
-  }, [data, startTime, endTime]);
 
   const shiftLeft = () => {
     // Move start time left by 15 minutes
@@ -47,9 +42,9 @@ export default function EmaChartCard({ share, data }) {
           +15 min
         </Button>
       </div>
-      <LineChard
+      <ResponsiveLineChart
         className="text-sm"
-        data={filteredData}
+        data={data}
         dataKeys={["ema38", "ema100"]}
         xAxisDataKey="tradeTimestamp"
         domain={[startTime, endTime]}

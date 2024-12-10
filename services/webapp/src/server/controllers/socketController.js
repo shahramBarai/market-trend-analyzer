@@ -42,7 +42,7 @@ const handleUnsubscription = (socket, subscription) => {
     socket.leave(`share_advis:${share}`);
   }
 
-  if (dataType === "tick") {
+  if (dataType === "ticks") {
     socket.leave(`share_tick:${share}`);
   }
 
