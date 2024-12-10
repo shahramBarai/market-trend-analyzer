@@ -14,7 +14,7 @@ export default function ShareInfo({ socket, share }) {
       .then((data) => {
         return data.messages.map((message) => {
           const tradeTimestamp = new Date(
-            message.tradeTimestamp.seconds * 1000
+            parseInt(message.tradeTimestamp.seconds) * 1000
           );
           const hours = tradeTimestamp.getHours();
           const minutes = tradeTimestamp.getMinutes();
@@ -47,17 +47,23 @@ export default function ShareInfo({ socket, share }) {
   });
 
   const handleEmaStreamData = (newData) => {
-    queryClient.setQueryData(["ema", share], (prev) => [
-      ...(prev || []),
-      newData,
-    ]);
+    newData.tradeTimestamp = new Date(
+      parseInt(newData.tradeTimestamp.seconds) * 1000
+    ).getTime();
+    queryClient.setQueryData(["ema", share], (prev) => {
+      const res = [...(prev ?? []), newData];
+      return res;
+    });
   };
 
   const handleAdvisoryStreamData = (newData) => {
-    queryClient.setQueryData(["advisories", share], (prev) => [
-      ...(prev || []),
-      newData,
-    ]);
+    newData.tradeTimestamp = new Date(
+      parseInt(newData.tradeTimestamp.seconds) * 1000
+    ).getTime();
+    queryClient.setQueryData(["advisories", share], (prev) => {
+      const res = [...(prev ?? []), newData];
+      return res;
+    });
   };
 
   const handleTicksStreamData = (newData) => {
@@ -79,7 +85,7 @@ export default function ShareInfo({ socket, share }) {
     }
 
     if (emaQuery.isSuccess) {
-      socket.emit("subscribe", { share, dataType: "advisories" });
+      socket.emit("subscribe", { share, dataType: "advis" });
       socket.on(`${share}-advisories`, handleAdvisoryStreamData);
     }
 
@@ -91,7 +97,7 @@ export default function ShareInfo({ socket, share }) {
     return () => {
       socket.emit("unsubscribe", { share, dataType: "ema" });
       socket.off(`${share}-ema`, handleEmaStreamData);
-      socket.emit("unsubscribe", { share, dataType: "advisories" });
+      socket.emit("unsubscribe", { share, dataType: "advis" });
       socket.off(`${share}-advisories`, handleAdvisoryStreamData);
       socket.emit("unsubscribe", { share, dataType: "ticks" });
       socket.off(`${share}-ticks`, handleTicksStreamData);

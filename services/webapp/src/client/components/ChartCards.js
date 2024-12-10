@@ -48,7 +48,7 @@ export const BarChartCard = ({ data, dataKeys, xAxisDataKey }) => {
   );
 };
 
-export const LineChard = ({
+export const ResponsiveLineChart = ({
   className = "",
   data,
   dataKeys,
@@ -82,6 +82,7 @@ export const LineChard = ({
           formatter={(value) => value.toFixed(2)}
         />
         <XAxis
+          allowDataOverflow
           dataKey={xAxisDataKey}
           type="number"
           domain={domain}
@@ -96,8 +97,8 @@ export const LineChard = ({
           scale="time"
         />
         <YAxis />
-        {dataKeys.map((key, index) => (
-          <Line key={index} type="monotone" dataKey={key} />
+        {dataKeys.map((key) => (
+          <Line key={key} type="monotone" dataKey={key} />
         ))}
       </LineChart>
     </ResponsiveContainer>
