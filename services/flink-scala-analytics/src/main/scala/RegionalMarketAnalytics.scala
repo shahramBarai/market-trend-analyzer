@@ -23,6 +23,8 @@ import org.apache.flink.connector.jdbc.{
   JdbcSink
 }
 import java.time.Instant
+import org.apache.flink.streaming.api.environment.CheckpointConfig
+import org.apache.flink.configuration.CheckpointingOptions
 
 class BuyAdvisoryKeyBasedPartitioner
     extends FlinkKafkaPartitioner[BuyAdvisory] {
@@ -54,7 +56,7 @@ class EMAResultKeyBasedPartitioner extends FlinkKafkaPartitioner[EMAResult] {
 }
 
 object RegionalMarketAnalytics {
-  val timescaleDBUrl = "jdbc:postgresql://localhost:5432/analytics"
+  val timescaleDBUrl = "jdbc:postgresql://timescaledb:5432/analytics"
   val timescaleDBUser = "postgres"
   val timescaleDBPassword = "password"
 
@@ -75,7 +77,7 @@ object RegionalMarketAnalytics {
           outputTopic_EMA,
           outputTopic_BuyAdvisory,
           parallelism = 1,
-          kafkaBrokers = "localhost:9094"
+          kafkaBrokers = "kafka:9092"
         )
     }
   }
@@ -102,6 +104,14 @@ object RegionalMarketAnalytics {
     env.getCheckpointConfig.setCheckpointTimeout(600000)
     env.getCheckpointConfig.setMinPauseBetweenCheckpoints(1000)
     env.getCheckpointConfig.setMaxConcurrentCheckpoints(1)
+    env.getCheckpointConfig.setExternalizedCheckpointCleanup(
+      CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION
+    )
+    val config = new Configuration();
+    config.set(CheckpointingOptions.CHECKPOINT_STORAGE, "filesystem");
+    config.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, "file:///tmp/flink-checkpoints");
+    env.configure(config);
+
 
     // Kafka consumer properties
     val kafkaConsumerProps = new java.util.Properties()
