@@ -158,15 +158,81 @@ While we currently run a single instance of the web application, it can be horiz
 
 Explain how the project was implemented, including the hardware/cloud services, programming tools,and GUI tools used
 
-```{python}
-#| echo: false
+The implementation of the Market Trend Analyzer project was carried out on a local development environment, leveraging containerization for portability, and incorporating multiple programming languages, frameworks, and tools to achieve high-performance real-time data processing and analytics.
 
-import numpy as np
-import matplotlib.pyplot as plt
+## Hardware and Environment
 
-# Plot a generic plot
-plt.plot(np.random.randn(1000).cumsum())
-```
+The entire system was developed and tested on a local machine running Ubuntu 22.04.5 LTS (64-bit). The hardware configuration included an HP EliteBook 810 G10 laptop with a 13th Gen Intel® Core™ i5-1335U (12-core) processor and 32 GB of RAM. This setup provided sufficient computational resources to run multiple Docker containers, execute high-throughput streaming processes, and serve a web interface, all on a single host.
+
+## Containerization with Docker and Docker Compose
+
+To ensure a consistent and reproducible environment, all system components were containerized using Docker. Docker Compose was used to define the multi-container setup, simplifying the orchestration of services and their dependencies. By specifying each service (e.g., producer, Kafka, Flink, TimescaleDB, and the web application) within a docker-compose.yml file, the system could be started and stopped with a single command, and developers could easily manage versions, ports, and resource allocations.
+
+## Programming Languages and Tools
+
+### Preprocessing with a Python Script
+
+Before launching the entire system, a Python script is executed to prepare the input data for the real-time producer. The original dataset—often a large, single CSV file containing historical trading events—is first split into smaller, symbol- and region-specific CSV files. This preprocessing step involves:
+
+- Input Parsing: The Python script reads the original large CSV file line by line.
+- Data Partitioning: For each trading event, the script identifies its corresponding share symbol and region. It then routes the event to the appropriate output CSV, ensuring that each resulting file contains data for a specific symbol-region combination.
+- File Organization: The script writes these smaller CSV files into a structured directory (e.g., data/day-08-11-21) for easy retrieval by the producer. This organization simplifies subsequent steps, as the producer can directly access time-sorted, symbol- and region-specific data without further filtering.
+
+By performing this operation upfront, the system avoids complex filtering at runtime, ensuring that the real-time producer deals only with clean, targeted input data, which makes the simulation of live market streams more realistic and efficient.
+
+### The Real-time Data Producer (Rust + Tokio)
+
+Once the preprocessing step is complete and the smaller CSV files are in place, the Rust-based producer component handles the real-time data ingestion and streaming to Kafka. The producer’s main workflow, as illustrated by the provided main.rs and csv.rs code, involves several key steps:
+
+1. Target Start Time Alignment: The producer reads a target start time from a given "topic"-like string (e.g., "08-11-2021 10:00:00") and calculates a time offset relative to the current wall-clock time. This offset aligns the historical trading events with the present, effectively recreating the live market conditions at the chosen start time.
+
+2. Asynchronous Data Reading: Using the Tokio runtime for asynchronous execution, the producer spawns multiple worker tasks (TradingFileProcessor) to handle each CSV file in parallel.
+  - Preprocessing Phase: Each worker first scans through its CSV to skip any events that should have already occurred before the target start time. It then synchronizes with other workers via a barrier, ensuring all files begin streaming events at the correct, unified start time.
+  - Real-time Simulation: Once synchronized, each worker reads future-dated events from its CSV. Before emitting each event, it calculates how long it should wait (sleep) until the event’s designated timestamp occurs in "real-time." This ensures that events are replayed chronologically and at the correct intervals, mirroring the timing of the original trading day.
+
+3. Data Serialization and Sending to Kafka: Each financial event is encapsulated in a FinancialTick structure and serialized using Protobuf (prost crates) to produce a compact binary message. This reduces overhead and increases performance compared to text-based formats like JSON.
+
+After serialization, the producer uses the rdkafka library to send messages to Kafka. The chosen Kafka topic naming convention incorporates the region (e.g., region-ticks), allowing for logical partitioning of data. By enabling Snappy compression in the Kafka producer configuration (compression.type=snappy), the system further optimizes bandwidth usage and latency.
+
+4. Concurrent Task Execution and Batching: The producer leverages Tokio’s asynchronous tasks to handle I/O operations without blocking, spawning separate tasks for sending messages to Kafka. It also manages batching and flushing strategies: while events are processed as they come due, the system periodically flushes buffered output to ensure low latency while balancing performance.
+
+Monitoring and Logging: Throughout execution, the producer logs its progress—when messages are sent, if any errors occur, and how many events are skipped or processed. This feedback loop assists in debugging and verifying that the simulation accurately reflects real-time conditions.
+
+### Messaging and Data Buffering (Kafka)
+The Market Trend Analyzer relies on Apache Kafka to serve as a central messaging system, providing high-throughput, fault-tolerant buffering of event data between producers and downstream consumers. By decoupling data producers from consumers, Kafka ensures that each component can process data at its own rate without impacting the overall system performance or reliability.
+
+#### Deployment and Configuration:
+Kafka is deployed as a containerized service using the Bitnami kafka:latest Docker image. The Docker Compose configuration file (docker-compose.yml) sets up a single Kafka broker with its controller, along with several configuration parameters tailored to the system’s requirements. Notable environment variables include:
+
+- Node and Process Configuration: *KAFKA_CFG_NODE_ID=0* and *KAFKA_CFG_PROCESS_ROLES=controller*,broker designate this node to act both as a controller and a broker.
+- Listeners and Advertised Listeners: Multiple listeners are configured (*PLAINTEXT://:9092*, *CONTROLLER://:9093*, *EXTERNAL://:9094*) to accommodate internal and external access patterns. Internally, services connect via kafka:9092, while external tools, such as monitoring UIs, use localhost:9094.
+- Protocol and Controller Quorum Settings: Mappings for security protocols and controller quorum voters ensure stable cluster management and leader election, critical for Kafka’s internal fault tolerance and scalability.
+- Disabling Auto-Topic Creation: *KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE=false* prevents implicit topic creation, ensuring all topics are explicitly defined and managed. This approach encourages a controlled and reproducible infrastructure setup.
+
+A designated volume (./configs/kafka) stores Kafka-related configuration files and scripts, facilitating maintainability and version control of the setup.
+
+#### Topic Management and Initialization:
+Before the system commences, topics are explicitly created via a script-based approach. The *create_topics.sh* script, executed inside the Kafka container, reads from a *topics.json* file that defines each topic’s name, partitions, and replicationFactor. By iterating through these definitions, the script ensures a clean, predictable set of Kafka topics is available upon startup.
+
+This explicit topic creation step, combined with disabling auto-topic creation, ensures stable, versioned infrastructure. The chosen naming convention (e.g., *FR-ticks*, *FR-ema*, *FR-advisories*) reflects the data’s region and nature, providing a clear organizational structure. While data is partitioned by region in this implementation, the framework can be easily extended to partition by symbol or other criteria as needed.
+
+#### Compression and Serialization:
+In alignment with the system’s performance goals, producers use Snappy compression to reduce message sizes and improve throughput. Alongside Protobuf-based serialization, this configuration ensures efficient message transport. The combination of binary serialization and compression significantly optimizes both network utilization and end-to-end latency, enabling Kafka to handle continuous, high-frequency event streams effectively.
+
+#### Monitoring and Observability:
+During the development stage a Kafka UI tool (kafka-ui service) is used for monitoring and maintaining the Kafka service. The Kafka UI simplifies the process of validating system behavior, confirming that producers are sending data as intended and consumers are receiving it, thereby enhancing overall transparency and operational confidence.
+
+
+### Stream Processing and Analytics (Flink)
+...
+
+
+### Storage and Querying (TimescaleDB)
+...
+
+### Web Application and Front-End Integration
+
+
 
 # Performance Evaluation
 
