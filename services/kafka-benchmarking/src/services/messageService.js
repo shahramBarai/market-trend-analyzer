@@ -13,7 +13,7 @@ export async function handleMessage(topic, buffer, benchmarkTimestamp) {
         id: msg.id,
         sec_type: msg.sec_type,
         last: msg.last,
-        trade_timestamp: JSON.stringify(msg.trade_timestamp),
+        trade_timestamp: msg.trade_timestamp,
         wallclock_timestamp: msg.wallclock_timestamp,
         delay: msg.delay,
         benchmark_timestamp: benchmarkTimestamp,
