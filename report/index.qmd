@@ -83,17 +83,13 @@ abstract: |
 
 # Introduction
 
-The detection of trading trends in financial markets is a critical task for analysts and traders. With the rapid growth of market data, the need for systems capable of processing and analyzing high-frequency data in real time has become more pressing. This project, performed as part of the “CS-E4780 - Scalable Systems and Data Management D” course at Aalto University, aims to address this challenge by developing a system that detects trading trends and provides actionable buy/sell advisories.
+The Market Trend Analyzer is a comprehensive system designed to handle high-frequency financial data streams, providing real-time analytics and actionable insights. Leveraging a publicly available dataset of trading events captured by Infront Financial Technology GmbH in 2021, this project demonstrates the integration of modern data processing, messaging, and storage technologies to build a robust and scalable analytics pipeline.
 
-The system leverages a real-world dataset consisting of one week’s worth of financial tick data collected from multiple European exchanges. The project implements two primary analyses: calculating Exponential Moving Averages (EMAs) to detect price trends and identifying bullish and bearish breakout patterns to generate buy and sell advisories. The system also includes a visualization component to display the detected trends and advisories, although it is still under development.
+The architecture of the Market Trend Analyzer focuses on scalability and real-time processing. By employing containerized microservices, the system ensures consistent and portable deployments across diverse environments, from local machines to cloud platforms. Each component—data producer, Kafka messaging system, Flink analytics engine, TimescaleDB storage, and the web application—plays a critical role in transforming raw trading data into meaningful insights.
 
-The architecture of the system is built to handle real-time data streams. The first component is the real-time data producer, which emulates a real-time stream of financial data by preprocessing a large CSV file and splitting events by event ID (share symbol + region) using a Python script. This data is then passed to a series of worker processes written in Rust with the Tokio library, which synchronizes and sends the data to Kafka topics based on the event region. Kafka acts as the buffer for this event data, ensuring scalability and reliability.
+The project showcases state-of-the-art technologies like Apache Kafka for fault-tolerant data buffering, Apache Flink for real-time analytics, and TimescaleDB for optimized storage of time-series data. Through a Python-based preprocessing step and a Rust-implemented real-time data producer, historical tick data is seamlessly converted into simulated live streams, ensuring authenticity and temporal accuracy in downstream computations.
 
-For real-time analytics, the project uses Flink to process events in 5-minute windows, with each task manager subscribing to a specific Kafka topic (representing a region) to handle relevant data. The output of this analysis is sent back to the Kafka analytics topic, which the client can subscribe to to access the processed results. This data informs the detection of price trends and breakout patterns, leading to actionable buy and sell advisories.
-
-Web dashboard for visializing the result....
-
-Kubernetes for auto-scaling the system ....
+By integrating these components, the Market Trend Analyzer illustrates how high-performance streaming systems can be built for financial applications, paving the way for advanced analytics and decision-making in dynamic market environments. This report details the implementation, architecture, and evaluation of the system, highlighting its design choices and technological innovations.
 
 ## Data Set
 
@@ -103,13 +99,15 @@ The data used for this course project are based on a week’s worth of real tick
 
 # System Architecture
 
-The Market Trend Analyzer’s architecture is designed with a focus on scalability, real-time processing, and efficient handling of high-volume financial data streams. It consists of multiple components, each selected and implemented to meet specific requirements for efficient data ingestion, processing, analysis, and delivery of market insights. The following diagram illustrates the system architecture and the data flow between these components.
-
-![Context view](images/context_view.jpg)
+The Market Trend Analyzer’s architecture is designed with a focus on scalability, real-time processing, and efficient handling of high-volume financial data streams. It consists of multiple components, each selected and implemented to meet specific requirements for efficient data ingestion, processing, analysis, and delivery of market insights. 
 
 We use Docker and Docker Compose to containerize and orchestrate all system components. Containerization simplifies deployment, ensuring the system runs consistently across different environments—be it a local machine, cloud provider, or Kubernetes cluster. The decision to use Docker and Docker Compose was driven by the need for a straightforward deployment process and environment consistency.
 
 The system is divided into several services, each representing a different component: the real-time data producer, Kafka, Flink, TimescaleDB, and the web application. Each service has its own Dockerfile defining base images, dependencies, and configurations. Docker Compose then orchestrates these services, specifying their relationships and dependencies, which simplifies the overall setup and management.
+
+The following diagram illustrates the system architecture and the data flow between these components.
+
+![Context view](images/context_view.jpg)
 
 ## Producer for Real-time Data Generation
 The producer component is split into two parts: subscription to a data source and a producer module. The subscription part fetches real-time market data, while the producer module processes and routes this data to the appropriate Kafka topics. This design ensures that the system can handle high-frequency, real-world events rather than relying on pre-fetched or batch data. The goal is to simulate real-time data streams and validate the system’s ability to handle large volumes of events effectively.
@@ -156,83 +154,58 @@ While we currently run a single instance of the web application, it can be horiz
 
 # Implementation
 
-Explain how the project was implemented, including the hardware/cloud services, programming tools,and GUI tools used
+The Market Trend Analyzer was implemented on a local Ubuntu 22.04.5 LTS machine (HP EliteBook 810 G10, 13th Gen Intel® Core™ i5-1335U, 32 GB RAM). This hardware provided ample resources to run multiple containerized services simultaneously, ensuring a stable development and testing environment.
 
-The implementation of the Market Trend Analyzer project was carried out on a local development environment, leveraging containerization for portability, and incorporating multiple programming languages, frameworks, and tools to achieve high-performance real-time data processing and analytics.
+## Containerization and Orchestration
+All components—producer, messaging, analytics, storage, and web interface—were packaged as Docker containers. Docker Compose defined the relationships between these services, simplifying startup and shutdown processes. By using containers, the system could be easily deployed and kept consistent across different environments.
 
-## Hardware and Environment
+## Data Preprocessing with Python
+A Python script ran once before the system started to prepare the input data. It read the original large CSV file of historical trading events and split it into smaller files organized by symbol and region. This pre-processing step ensured that the real-time producer had direct access to well-structured, symbol-specific data streams without runtime filtering overhead.
 
-The entire system was developed and tested on a local machine running Ubuntu 22.04.5 LTS (64-bit). The hardware configuration included an HP EliteBook 810 G10 laptop with a 13th Gen Intel® Core™ i5-1335U (12-core) processor and 32 GB of RAM. This setup provided sufficient computational resources to run multiple Docker containers, execute high-throughput streaming processes, and serve a web interface, all on a single host.
-
-## Containerization with Docker and Docker Compose
-
-To ensure a consistent and reproducible environment, all system components were containerized using Docker. Docker Compose was used to define the multi-container setup, simplifying the orchestration of services and their dependencies. By specifying each service (e.g., producer, Kafka, Flink, TimescaleDB, and the web application) within a docker-compose.yml file, the system could be started and stopped with a single command, and developers could easily manage versions, ports, and resource allocations.
-
-## Programming Languages and Tools
-
-### Preprocessing with a Python Script
-
-Before launching the entire system, a Python script is executed to prepare the input data for the real-time producer. The original dataset—often a large, single CSV file containing historical trading events—is first split into smaller, symbol- and region-specific CSV files. This preprocessing step involves:
-
-- Input Parsing: The Python script reads the original large CSV file line by line.
-- Data Partitioning: For each trading event, the script identifies its corresponding share symbol and region. It then routes the event to the appropriate output CSV, ensuring that each resulting file contains data for a specific symbol-region combination.
-- File Organization: The script writes these smaller CSV files into a structured directory (e.g., data/day-08-11-21) for easy retrieval by the producer. This organization simplifies subsequent steps, as the producer can directly access time-sorted, symbol- and region-specific data without further filtering.
-
-By performing this operation upfront, the system avoids complex filtering at runtime, ensuring that the real-time producer deals only with clean, targeted input data, which makes the simulation of live market streams more realistic and efficient.
-
-### The Real-time Data Producer (Rust + Tokio)
-
+## The Real-time Data Producer
 Once the preprocessing step is complete and the smaller CSV files are in place, the Rust-based producer component handles the real-time data ingestion and streaming to Kafka. The producer’s main workflow, as illustrated by the provided main.rs and csv.rs code, involves several key steps:
 
-1. Target Start Time Alignment: The producer reads a target start time from a given "topic"-like string (e.g., "08-11-2021 10:00:00") and calculates a time offset relative to the current wall-clock time. This offset aligns the historical trading events with the present, effectively recreating the live market conditions at the chosen start time.
+**Target Start Time Alignment:** The producer reads a target start time from a given "topic"-like string (e.g., "08-11-2021 10:00:00") and calculates a time offset relative to the current wall-clock time. This offset aligns the historical trading events with the present, effectively recreating the live market conditions at the chosen start time.
 
-2. Asynchronous Data Reading: Using the Tokio runtime for asynchronous execution, the producer spawns multiple worker tasks (TradingFileProcessor) to handle each CSV file in parallel.
+**Asynchronous Data Reading:** Using the Tokio runtime for asynchronous execution, the producer spawns multiple worker tasks (TradingFileProcessor) to handle each CSV file in parallel.
   - Preprocessing Phase: Each worker first scans through its CSV to skip any events that should have already occurred before the target start time. It then synchronizes with other workers via a barrier, ensuring all files begin streaming events at the correct, unified start time.
   - Real-time Simulation: Once synchronized, each worker reads future-dated events from its CSV. Before emitting each event, it calculates how long it should wait (sleep) until the event’s designated timestamp occurs in "real-time." This ensures that events are replayed chronologically and at the correct intervals, mirroring the timing of the original trading day.
 
-3. Data Serialization and Sending to Kafka: Each financial event is encapsulated in a FinancialTick structure and serialized using Protobuf (prost crates) to produce a compact binary message. This reduces overhead and increases performance compared to text-based formats like JSON.
+**Data Serialization and Sending to Kafka:** Each financial event is encapsulated in a FinancialTick structure and serialized using Protobuf (prost crates) to produce a compact binary message. This reduces overhead and increases performance compared to text-based formats like JSON.
 
 After serialization, the producer uses the rdkafka library to send messages to Kafka. The chosen Kafka topic naming convention incorporates the region (e.g., region-ticks), allowing for logical partitioning of data. By enabling Snappy compression in the Kafka producer configuration (compression.type=snappy), the system further optimizes bandwidth usage and latency.
 
-4. Concurrent Task Execution and Batching: The producer leverages Tokio’s asynchronous tasks to handle I/O operations without blocking, spawning separate tasks for sending messages to Kafka. It also manages batching and flushing strategies: while events are processed as they come due, the system periodically flushes buffered output to ensure low latency while balancing performance.
+**Concurrent Task Execution and Batching:** The producer leverages Tokio’s asynchronous tasks to handle I/O operations without blocking, spawning separate tasks for sending messages to Kafka. It also manages batching and flushing strategies: while events are processed as they come due, the system periodically flushes buffered output to ensure low latency while balancing performance.
 
 Monitoring and Logging: Throughout execution, the producer logs its progress—when messages are sent, if any errors occur, and how many events are skipped or processed. This feedback loop assists in debugging and verifying that the simulation accurately reflects real-time conditions.
 
-### Messaging and Data Buffering (Kafka)
-The Market Trend Analyzer relies on Apache Kafka to serve as a central messaging system, providing high-throughput, fault-tolerant buffering of event data between producers and downstream consumers. By decoupling data producers from consumers, Kafka ensures that each component can process data at its own rate without impacting the overall system performance or reliability.
+## Messaging and Data Buffering (Kafka)
+Apache Kafka served as the central messaging hub, buffering high-volume event data from the producer. Topics were explicitly created and managed via a shell script and a JSON configuration file. Protobuf serialization and Snappy compression optimized network usage. This setup decoupled the producer from downstream consumers, ensuring scalability and reliable data delivery.
 
-#### Deployment and Configuration:
-Kafka is deployed as a containerized service using the Bitnami kafka:latest Docker image. The Docker Compose configuration file (docker-compose.yml) sets up a single Kafka broker with its controller, along with several configuration parameters tailored to the system’s requirements. Notable environment variables include:
+## Stream Processing and Analytics (Flink)
+Flink serves as the core of the analytics pipeline, responsible for processing high-frequency financial data streams and generating actionable insights. Deployed as a JobManager and multiple TaskManagers, Flink is configured to connect seamlessly with Kafka, consuming Protobuf-encoded events in real-time. The system leverages event-time semantics and custom timestamp extraction to process each event based on its original trading time, ensuring precise temporal alignment and accurate computations.
 
-- Node and Process Configuration: *KAFKA_CFG_NODE_ID=0* and *KAFKA_CFG_PROCESS_ROLES=controller*,broker designate this node to act both as a controller and a broker.
-- Listeners and Advertised Listeners: Multiple listeners are configured (*PLAINTEXT://:9092*, *CONTROLLER://:9093*, *EXTERNAL://:9094*) to accommodate internal and external access patterns. Internally, services connect via kafka:9092, while external tools, such as monitoring UIs, use localhost:9094.
-- Protocol and Controller Quorum Settings: Mappings for security protocols and controller quorum voters ensure stable cluster management and leader election, critical for Kafka’s internal fault tolerance and scalability.
-- Disabling Auto-Topic Creation: *KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE=false* prevents implicit topic creation, ensuring all topics are explicitly defined and managed. This approach encourages a controlled and reproducible infrastructure setup.
+Flink’s analytical workflow begins with event-time windowing, where incoming events are grouped into 5-minute tumbling windows based on their share symbol and timestamp. These windows facilitate the computation of Exponential Moving Averages (EMAs), with stateful EMACalculator functions updating and maintaining EMA values as new data flows in. This stateful design allows the system to provide continuous, real-time insights by iteratively refining the computed metrics.
 
-A designated volume (./configs/kafka) stores Kafka-related configuration files and scripts, facilitating maintainability and version control of the setup.
+Beyond EMA calculations, Flink employs pattern detection mechanisms to identify critical trading signals. Using a stateful CrossoverDetector, the system monitors interactions between short-term and long-term EMA values. When a short-term EMA surpasses or drops below a long-term EMA, Flink emits buy or sell advisories in near real-time. This pattern recognition transforms raw data streams into actionable intelligence, empowering decision-making in dynamic market conditions.
 
-#### Topic Management and Initialization:
-Before the system commences, topics are explicitly created via a script-based approach. The *create_topics.sh* script, executed inside the Kafka container, reads from a *topics.json* file that defines each topic’s name, partitions, and replicationFactor. By iterating through these definitions, the script ensures a clean, predictable set of Kafka topics is available upon startup.
+To maintain consistency and fault tolerance, Flink’s checkpointing mechanism is configured with EXACTLY_ONCE semantics. This setup ensures that even in the event of system failures, the pipeline can recover without data loss or duplication, meeting the stringent reliability requirements of financial analysis.
 
-This explicit topic creation step, combined with disabling auto-topic creation, ensures stable, versioned infrastructure. The chosen naming convention (e.g., *FR-ticks*, *FR-ema*, *FR-advisories*) reflects the data’s region and nature, providing a clear organizational structure. While data is partitioned by region in this implementation, the framework can be easily extended to partition by symbol or other criteria as needed.
+The processed outputs, including EMA results and trading advisories, are simultaneously written back to Kafka and stored in TimescaleDB. This dual-output approach ensures immediate availability for real-time dashboards while preserving historical data for retrospective analysis and long-term queries. This integration with both Kafka and TimescaleDB highlights Flink’s versatility in supporting both streaming and storage-oriented use cases within a unified system architecture.
 
-#### Compression and Serialization:
-In alignment with the system’s performance goals, producers use Snappy compression to reduce message sizes and improve throughput. Alongside Protobuf-based serialization, this configuration ensures efficient message transport. The combination of binary serialization and compression significantly optimizes both network utilization and end-to-end latency, enabling Kafka to handle continuous, high-frequency event streams effectively.
+## Storage and Querying (TimescaleDB)
+TimescaleDB was deployed as a Docker container alongside the other services, with credentials and database name specified via environment variables. Upon startup, initialization scripts in ./configs/db-init executed SQL commands to configure TimescaleDB:
 
-#### Monitoring and Observability:
-During the development stage a Kafka UI tool (kafka-ui service) is used for monitoring and maintaining the Kafka service. The Kafka UI simplifies the process of validating system behavior, confirming that producers are sending data as intended and consumers are receiving it, thereby enhancing overall transparency and operational confidence.
+**Extension and Schema Setup:** The timescaledb extension was enabled to introduce time-series optimizations. Two tables, ema_results and buy_advisories, were created to store computed EMAs and trading advisories, respectively.
 
+**Time-Series Partitioning:** Both tables were converted into hypertables using create_hypertable(). This command instructed TimescaleDB to partition the tables on the trade_timestamp column, ensuring that inserts and queries scale efficiently as data volumes grow.
 
-### Stream Processing and Analytics (Flink)
-...
+Flink’s analytics pipeline wrote EMA results and advisories into TimescaleDB via JDBC sinks. By defining time-based primary keys and indexes, the database could efficiently store and retrieve historical market analytics, supporting both retrospective analysis and continuous, real-time updates.
 
+### Web Application
+The web application integrates a React-based front end with a Node.js/Express server, both running in same Docker container for simplicity and ease of deployment. Environment variables are used to configure the connection details for Kafka and TimescaleDB. Upon startup, the server leverages these variables to authenticate with TimescaleDB and to subscribe to the appropriate Kafka topics. The Node.js server employs Sequelize, a Node.js ORM, to interact with TimescaleDB and define models corresponding to the database tables. By using these models, the server can query historical EMA results and trading advisories without resorting to raw SQL commands.
 
-### Storage and Querying (TimescaleDB)
-...
-
-### Web Application and Front-End Integration
-
-
+The server runs as a Docker service, referencing a dedicated Dockerfile and mounting local source code, facilitating rapid development and deployment. When the container starts, the Node.js server connects to Kafka to consume live market event streams, processes these events, and delivers real-time updates to the React front end via Socket.IO. At the same time, requests for historical data are efficiently served through Sequelize queries against TimescaleDB, enabling the web interface to present both current conditions and archived records of computed indicators and advisories.
 
 # Performance Evaluation
 
