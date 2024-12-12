@@ -14,6 +14,7 @@ services:
       - ../report/index.qmd:/report/index.qmd
       - ../report/header.tex:/report/header.tex
       - ../report/images:/report/images
+      - ../services/kafka-benchmarking/output:/report/benchmarking-output
     profiles:
         - report
 
