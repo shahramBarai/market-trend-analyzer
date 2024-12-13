@@ -26,35 +26,6 @@ import java.time.Instant
 import org.apache.flink.streaming.api.environment.CheckpointConfig
 import org.apache.flink.configuration.CheckpointingOptions
 
-class BuyAdvisoryKeyBasedPartitioner
-    extends FlinkKafkaPartitioner[BuyAdvisory] {
-  override def partition(
-      record: BuyAdvisory,
-      keyBytes: Array[Byte],
-      valueBytes: Array[Byte],
-      targetTopic: String,
-      partitions: Array[Int]
-  ): Int = {
-    val keyHash = record.symbol.hashCode
-    val partitionIndex = Math.abs(keyHash) % partitions.length
-    partitionIndex
-  }
-}
-
-class EMAResultKeyBasedPartitioner extends FlinkKafkaPartitioner[EMAResult] {
-  override def partition(
-      record: EMAResult,
-      keyBytes: Array[Byte],
-      valueBytes: Array[Byte],
-      targetTopic: String,
-      partitions: Array[Int]
-  ): Int = {
-    val keyHash = record.symbol.hashCode
-    val partitionIndex = Math.abs(keyHash) % partitions.length
-    partitionIndex
-  }
-}
-
 object RegionalMarketAnalytics {
   val timescaleDBUrl = "jdbc:postgresql://timescaledb:5432/analytics"
   val timescaleDBUser = "postgres"
@@ -172,11 +143,12 @@ object RegionalMarketAnalytics {
     )
 
     // Create Kafka producer for EMA results
+    val emaSerializer = new EMAResultSerializer()
+    emaSerializer.setTopic(outputTopic_EMA)
     val emaProducer = new FlinkKafkaProducer[EMAResult](
       outputTopic_EMA,
-      new EMAResultSerializer(),
+      emaSerializer,
       emaProducerProps,
-      new EMAResultKeyBasedPartitioner(),
       FlinkKafkaProducer.Semantic.EXACTLY_ONCE,
       FlinkKafkaProducer.DEFAULT_KAFKA_PRODUCERS_POOL_SIZE
     )
@@ -250,11 +222,12 @@ object RegionalMarketAnalytics {
     )
 
     // Create Kafka producer for buy advisories
+    val buyAdvisorySerializer = new BuyAdvisorySerializer()
+    buyAdvisorySerializer.setTopic(outputTopic_BuyAdvisory)
     val buyAdvisoryProducer = new FlinkKafkaProducer[BuyAdvisory](
       outputTopic_BuyAdvisory,
-      new BuyAdvisorySerializer(),
+      buyAdvisorySerializer,
       buyAdvisoryProducerProps,
-      new BuyAdvisoryKeyBasedPartitioner(),
       FlinkKafkaProducer.Semantic.EXACTLY_ONCE,
       FlinkKafkaProducer.DEFAULT_KAFKA_PRODUCERS_POOL_SIZE
     )
