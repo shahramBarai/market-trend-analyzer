@@ -35,7 +35,8 @@ services:
       - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
       - KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE=false
     volumes:
-      - ./configs/kafka:/configs
+      - ./configs/kafka/create_topics.sh:/configs/create_topics.sh
+      - ../shared/topics.json:/configs/topics.json
 
   # ------ Kafka UI ------- #
   kafka-ui:
