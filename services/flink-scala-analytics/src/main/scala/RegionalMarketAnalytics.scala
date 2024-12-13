@@ -188,7 +188,7 @@ object RegionalMarketAnalytics {
     val emaJdbcSink = JdbcSink.sink[EMAResult](
       """
         INSERT INTO ema_results (symbol, ema38, ema100, trade_timestamp)
-        VALUES (?, ?, ?, ?)
+        VALUES (?, ?, ?, ?) ON CONFLICT (symbol, trade_timestamp) DO NOTHING
       """,
       new JdbcStatementBuilder[EMAResult] {
         override def accept(
@@ -269,7 +269,7 @@ object RegionalMarketAnalytics {
     val buyAdvisoryJdbcSink = JdbcSink.sink[BuyAdvisory](
       """
         INSERT INTO buy_advisories (symbol, trade_timestamp, advice)
-        VALUES (?, ?, ?)
+        VALUES (?, ?, ?) ON CONFLICT (symbol, trade_timestamp) DO NOTHING
       """,
       new JdbcStatementBuilder[BuyAdvisory] {
         override def accept(
