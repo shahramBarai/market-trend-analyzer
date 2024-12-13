@@ -62,24 +62,27 @@ object RegionalMarketAnalytics {
 
   def main(args: Array[String]): Unit = {
     val logger: Logger = LoggerFactory.getLogger("RegionalMarketAnalytics")
+    val params = ParameterTool.fromArgs(args)
 
-    // Define regional jobs
-    val regions = Seq(
-      ("Region1", "FR-ticks", "FR-ema", "FR-advisories")
+    val region = params.getRequired("region")
+    val inputTopic = params.getRequired("inputTopic")
+    val outputTopic_EMA = params.getRequired("outputTopicEMA")
+    val outputTopic_BuyAdvisory = params.getRequired("outputTopicBuyAdvisory")
+    val parallelism = params.getInt("parallelism", 1)
+    val kafkaBrokers = params.get("kafkaBrokers", "kafka:9092")
+
+    logger.info(
+      s"Creating $region market analytics job with parallelism $parallelism"
     )
 
-    logger.info(s"Creating ${regions.length} regional market analytics jobs")
-    regions.foreach {
-      case (region, inputTopic, outputTopic_EMA, outputTopic_BuyAdvisory) =>
-        createJob(
-          region,
-          inputTopic,
-          outputTopic_EMA,
-          outputTopic_BuyAdvisory,
-          parallelism = 1,
-          kafkaBrokers = "kafka:9092"
-        )
-    }
+    createJob(
+      region,
+      inputTopic,
+      outputTopic_EMA,
+      outputTopic_BuyAdvisory,
+      parallelism,
+      kafkaBrokers
+    )
   }
 
   def createJob(
@@ -109,9 +112,11 @@ object RegionalMarketAnalytics {
     )
     val config = new Configuration();
     config.set(CheckpointingOptions.CHECKPOINT_STORAGE, "filesystem");
-    config.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, "file:///tmp/flink-checkpoints");
+    config.set(
+      CheckpointingOptions.CHECKPOINTS_DIRECTORY,
+      "file:///tmp/flink-checkpoints"
+    );
     env.configure(config);
-
 
     // Kafka consumer properties
     val kafkaConsumerProps = new java.util.Properties()
@@ -134,7 +139,10 @@ object RegionalMarketAnalytics {
     // Parse Market Tick Data
     val FinancialTickStream = env
       .addSource(kafkaConsumer)
+      .setParallelism(1)
+      .name("Kafka Source")
       .assignTimestampsAndWatermarks(new FinancialTickTimestampExtractor())
+      .name("Timestamps and Watermarks")
 
     // Set up 5-minute tumbling windows starting at midnight
     val windowSize = Time.minutes(1)
@@ -145,6 +153,8 @@ object RegionalMarketAnalytics {
       .keyBy(_.id)
       .window(TumblingEventTimeWindows.of(windowSize, windowOffset))
       .process(new EMACalculator)
+      .setParallelism(parallelism)
+      .name("Tumbling Window EMA Calculator")
 
     // Kafka producer properties for EMAs
     val emaProducerProps = new java.util.Properties()
@@ -172,7 +182,7 @@ object RegionalMarketAnalytics {
     )
 
     // Add sink to Kafka for EMA results
-    emaStream.addSink(emaProducer)
+    emaStream.addSink(emaProducer).setParallelism(1).name("EMA Kafka Sink")
 
     // Define JDBC Sink for EMA Results
     val emaJdbcSink = JdbcSink.sink[EMAResult](
@@ -199,7 +209,9 @@ object RegionalMarketAnalytics {
             }
             case None => {
               // Should not happen if the EMACalculator is timestamping records
-              logger.warn(s"Skipping EMA record: Missing trade timestamp for symbol: ${record.symbol}")
+              logger.warn(
+                s"Skipping EMA record: Missing trade timestamp for symbol: ${record.symbol}"
+              )
             }
           }
         }
@@ -213,12 +225,14 @@ object RegionalMarketAnalytics {
     )
 
     // Add sink to TimescaleDB for EMA results
-    emaStream.addSink(emaJdbcSink)
+    emaStream.addSink(emaJdbcSink).setParallelism(1).name("EMA JDBC Sink")
 
     // Detect crossovers and generate buy advisories
     val buyAdvisoryStream = emaStream
       .keyBy(_.symbol)
       .flatMap(new CrossoverDetector)
+      .name("Crossover Detector")
+      .setParallelism(parallelism)
 
     // Kafka producer properties for EMAs
     val buyAdvisoryProducerProps = new java.util.Properties()
@@ -246,7 +260,10 @@ object RegionalMarketAnalytics {
     )
 
     // Add sink to Kafka for buy advisories
-    buyAdvisoryStream.addSink(buyAdvisoryProducer)
+    buyAdvisoryStream
+      .addSink(buyAdvisoryProducer)
+      .setParallelism(1)
+      .name("Buy Advisory Kafka Sink")
 
     // Define JDBC Sink for Buy Advisories
     val buyAdvisoryJdbcSink = JdbcSink.sink[BuyAdvisory](
@@ -272,7 +289,9 @@ object RegionalMarketAnalytics {
             }
             case None => {
               // Should not happen if the EMACalculator is timestamping records
-              logger.warn(s"Skipping advisory record: Missing trade timestamp for symbol: ${record.symbol}")
+              logger.warn(
+                s"Skipping advisory record: Missing trade timestamp for symbol: ${record.symbol}"
+              )
             }
           }
         }
@@ -286,7 +305,10 @@ object RegionalMarketAnalytics {
     )
 
     // Add sink to TimescaleDB for buy advisories
-    buyAdvisoryStream.addSink(buyAdvisoryJdbcSink)
+    buyAdvisoryStream
+      .addSink(buyAdvisoryJdbcSink)
+      .setParallelism(1)
+      .name("Buy Advisory JDBC Sink")
 
     // Execute the Flink job
     env.execute(s"Market Analytics Job for Region $region")
