@@ -78,7 +78,7 @@ acm-metadata:
     - system performance
 
 abstract: |
-  This is a course project report for the course "CS-E4780 - Scalable Systems and Data Management D" at Aalto University. The project addresses the analysis of financial tick data to detect trading trends by implementing a system capable of identifying price movement patterns for individual symbols and generating actionable buy/sell advisories. Using a real-world dataset comprising one week of high-frequency market events across multiple European exchanges, two primary analyses were conducted: (1) calculating Exponential Moving Averages (EMAs) over fixed time windows to detect short-term price trends and (2) identifying bullish and bearish breakout patterns to generate buy and sell advisories, respectively. The developed system also includes a visualization component to highlight detected patterns, enhancing trader decision-making capabilities. Evaluation focuses on performance, scalability, and accuracy in processing high-volume event streams.
+  This is a course project report for the course "CS-E4780 - Scalable Systems and Data Management D" at Aalto University. The project addresses the analysis of financial tick data to detect trading trends by implementing a system capable of identifying price movement patterns for individual symbols and generating actionable buy/sell advisories. Using a real-world dataset comprising one week of high-frequency market events across multiple European exchanges, two primary analyses were conducted: (1) calculating Exponential Moving Averages (EMAs) over fixed time windows to detect short-term price trends and (2) identifying bullish and bearish breakout patterns to generate buy and sell advisories, respectively. The developed system also includes a visualization component to highlight detected patterns, enhancing trader decision-making capabilities.
 ---
 
 # Introduction
@@ -154,12 +154,12 @@ While we currently run a single instance of the web application, it can be horiz
 
 # Implementation
 
-The Market Trend Analyzer was implemented on a local Ubuntu 22.04.5 LTS machine (HP EliteBook 810 G10, 13th Gen Intel® Core™ i5-1335U, 32 GB RAM). This hardware provided ample resources to run multiple containerized services simultaneously, ensuring a stable development and testing environment.
+The Market Trend Analyzer was tested on a local Ubuntu 22.04.5 LTS machine (HP EliteBook 810 G10, 13th Gen Intel® Core™ i5-1335U, 32 GB RAM). This hardware provided ample resources to run multiple containerized services simultaneously, ensuring a stable development and testing environment.
 
-## Containerization and Orchestration
-All components—producer, messaging, analytics, storage, and web interface—were packaged as Docker containers. Docker Compose defined the relationships between these services, simplifying startup and shutdown processes. By using containers, the system could be easily deployed and kept consistent across different environments.
+### Containerization and Orchestration
+All components — producer, messaging, analytics, storage, and web interface—were packaged as Docker containers. Docker Compose defined the relationships between these services, simplifying startup and shutdown processes. By using containers, the system could be easily deployed and kept consistent across different environments.
 
-## Data Preprocessing with Python
+### Data Preprocessing with Python
 A Python script ran once before the system started to prepare the input data. It read the original large CSV file of historical trading events and split it into smaller files organized by symbol and region. This pre-processing step ensured that the real-time producer had direct access to well-structured, symbol-specific data streams without runtime filtering overhead.
 
 ## The Real-time Data Producer
@@ -179,7 +179,7 @@ After serialization, the producer uses the rdkafka library to send messages to K
 
 Monitoring and Logging: Throughout execution, the producer logs its progress—when messages are sent, if any errors occur, and how many events are skipped or processed. This feedback loop assists in debugging and verifying that the simulation accurately reflects real-time conditions.
 
-## Messaging and Data Buffering (Kafka)
+### Messaging and Data Buffering (Kafka)
 Apache Kafka served as the central messaging hub, buffering high-volume event data from the producer. Topics were explicitly created and managed via a shell script and a JSON configuration file. Protobuf serialization and Snappy compression optimized network usage. This setup decoupled the producer from downstream consumers, ensuring scalability and reliable data delivery.
 
 ## Stream Processing and Analytics (Flink)
@@ -207,12 +207,12 @@ The web application integrates a React-based front end with a Node.js/Express se
 
 The server runs as a Docker service, referencing a dedicated Dockerfile and mounting local source code, facilitating rapid development and deployment. When the container starts, the Node.js server connects to Kafka to consume live market event streams, processes these events, and delivers real-time updates to the React front end via Socket.IO. At the same time, requests for historical data are efficiently served through Sequelize queries against TimescaleDB, enabling the web interface to present both current conditions and archived records of computed indicators and advisories.
 
-# Performance Evaluation
+## Performance Evaluation
 
-Assess the system’s performance, including its correctness (e.g., whether query results are accurate), scalability (how the system performs with varying resources, such as CPU, or workloads, such as events per second), and resource utilization (e.g., GPU and CPU usage).
+The Market Trend Analyzer was evaluated based on simulated real-time data streams, focusing on performance, scalability, and accuracy. The system handled each day’s worth of trading events in real-time with no backpressure, demonstrating its ability to process high-frequency data streams efficiently. Otherwise, each component can be reconfigured and scaled horizontally up to sequential processing of each symbol in parallel, leaving communication between the components as the main bottleneck.
 
 # Conclusion
 
-Summarize the project and its contributions, and discuss potential future work.
+In conclusion, the Market Trend Analyzer successfully processes high-frequency financial data streams in near real-time, performs EMA calculations, detects breakout patterns, and generates actionable buy/sell advisories. Leveraging containerized microservices, it integrates a Rust-based real-time producer, Kafka for distributed messaging, Flink for analytics, and TimescaleDB for time-series data storage. The web application provides interactive visualizations and timely insights. This proof-of-concept system demonstrates the feasibility of building scalable, low-latency streaming pipelines for financial analytics, highlighting that further refinement, horizontal scaling, and more advanced analytical models can enhance its applicability and performance.
 
 # References
