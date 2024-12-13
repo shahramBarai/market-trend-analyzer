@@ -49,7 +49,32 @@ echo "All services started."
 
 # Run the Flink job in background
 echo "Running Flink job..."
-docker exec flink-jobmanager bash -c "flink run -d /opt/flink/usrlib/scala-2.12/flink-scala-analytics-assembly-0.1.0-SNAPSHOT.jar"
+docker exec flink-jobmanager bash -c " \
+flink run -d /opt/flink/usrlib/scala-2.12/flink-scala-analytics-assembly-0.1.0-SNAPSHOT.jar \
+--region FR \
+--inputTopic FR-ticks \
+--outputTopicEMA FR-ema \
+--outputTopicBuyAdvisory FR-advisories \
+--parallelism 2 \
+--kafkaBrokers kafka:9092"
+check_success
+docker exec flink-jobmanager bash -c " \
+flink run -d /opt/flink/usrlib/scala-2.12/flink-scala-analytics-assembly-0.1.0-SNAPSHOT.jar \
+--region NL \
+--inputTopic NL-ticks \
+--outputTopicEMA NL-ema \
+--outputTopicBuyAdvisory NL-advisories \
+--parallelism 2 \
+--kafkaBrokers kafka:9092"
+check_success
+docker exec flink-jobmanager bash -c " \
+flink run -d /opt/flink/usrlib/scala-2.12/flink-scala-analytics-assembly-0.1.0-SNAPSHOT.jar \
+--region ETR \
+--inputTopic ETR-ticks \
+--outputTopicEMA ETR-ema \
+--outputTopicBuyAdvisory ETR-advisories \
+--parallelism 2 \
+--kafkaBrokers kafka:9092"
 check_success
 echo "Flink job started."
 
