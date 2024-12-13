@@ -44,6 +44,7 @@ with open(filepath, newline='') as csvfile:
 
     files = {}
     counts = {}  # Dictionary to count how many rows each share gets
+    regions = {} # Dictionary to count how many regions in the file
 
     # Create a directory for the output if it doesn't exist
     if not os.path.exists(output_dir):
@@ -56,16 +57,21 @@ with open(filepath, newline='') as csvfile:
     for row in reader:
         id = row[id_index]
         if id not in files:
+            # Split by exchange region and shares
+            region = id.split('.')[1]
+            # Add the region to the regions dictionary if it doesn't exist
+            if region not in regions:
+                regions[region] = 1
+            
             # Create a new file for the ID
             if split_by_region:
-                # Split by exchange region and shares
-                region = id.split('.')[1]
                 # Create a directory for the region if it doesn't exist
                 region_dir = f'{output_dir}/{region}'
                 if not os.path.exists(region_dir):
                     os.makedirs(region_dir)
                 # Create a file for shares in the region
                 files[id] = open(f'{region_dir}/{id}.csv', 'w')
+                
             else:
                 # Split by id only
                 files[id] = open(f'{output_dir}/{id}.csv', 'w')
@@ -108,6 +114,26 @@ with open(filepath, newline='') as csvfile:
     for share_id, count in top_10:
         print(f"{i}. {share_id}: {count} rows")
         i += 1
+
+    print("\nRegions in the file:")
+    for region in regions:
+        print(f"- {region}")
+
+    # Delete the topics.json file if it exists
+    if os.path.exists(f'{shared_dir}/topics.json'):
+        os.remove(f'{shared_dir}/topics.json')
+
+    # Create a topics.json file which contains the list of regions and kafka config
+    with open(f'{shared_dir}/topics.json', 'w') as f:
+        f.write('[')
+        for i, region in enumerate(regions):
+            f.write(f'{{"name": "{region}-ticks","partitions": 10,"replicationFactor": 1}},')
+            f.write(f'{{"name": "{region}-ema","partitions": 1,"replicationFactor": 1}},')
+            f.write(f'{{"name": "{region}-advisories","partitions": 1,"replicationFactor": 1}}')
+            if i != len(regions)-1:
+                f.write(',')
+        f.write(']')
+        f.close()
 
     print("\nTotal number of shares:", len(files))
     print(f"Time taken to split {filepath}: {spliting_time} seconds")
