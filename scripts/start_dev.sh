@@ -61,6 +61,6 @@ if [ "$1" == "--producer=docker" ]; then
     check_success
 else
     cd services/producer
-    cargo run
+    cargo build && cargo run
     check_success
 fi
