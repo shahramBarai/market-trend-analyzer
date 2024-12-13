@@ -1,48 +1,35 @@
 import finance.trading.analysis.message.{FinancialTick, EMAResult}
-
-import org.apache.flink.api.common.state.{ValueState, ValueStateDescriptor}
-import org.apache.flink.configuration.Configuration
-import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction
-import org.apache.flink.streaming.api.scala.function.RichWindowFunction
+import org.apache.flink.streaming.api.scala.function.ProcessWindowFunction
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow
 import org.apache.flink.util.Collector
-import org.slf4j.{Logger, LoggerFactory}
+import org.apache.flink.api.common.state.ValueStateDescriptor
 
 class EMACalculator
-    extends RichWindowFunction[
+    extends ProcessWindowFunction[
       FinancialTick, // Input type
       EMAResult, // Output type
       String, // Key type
       TimeWindow // Window type
     ] {
 
-  private val logger: Logger = LoggerFactory.getLogger("EMACalculator")
-  private var ema38State: ValueState[Double] = _
-  private var ema100State: ValueState[Double] = _
-
-  override def open(parameters: Configuration): Unit = {
-    val ema38Descriptor =
-      new ValueStateDescriptor[Double]("ema38", classOf[Double])
-    val ema100Descriptor =
-      new ValueStateDescriptor[Double]("ema100", classOf[Double])
-
-    ema38State = getRuntimeContext.getState(ema38Descriptor)
-    ema100State = getRuntimeContext.getState(ema100Descriptor)
-
-    logger.info("EMACalculator initialized")
-  }
-
-  override def apply(
+  override def process(
       key: String,
-      window: TimeWindow,
-      input: Iterable[FinancialTick],
+      context: Context,
+      elements: Iterable[FinancialTick],
       out: Collector[EMAResult]
   ): Unit = {
-    val closePrice = input.last.last.toDouble // Last price event in the window
+    val closePrice =
+      elements.last.last.toDouble // Last price event in the window
 
     // Retrieve previous EMA values or initialize to 0
-    val prevEMA38 = Option(ema38State.value()).getOrElse(0.0)
-    val prevEMA100 = Option(ema100State.value()).getOrElse(0.0)
+    val ema38State = context.globalState.getState[Double](
+      new ValueStateDescriptor[Double]("ema38", classOf[Double], 0.0)
+    )
+    val ema100State = context.globalState.getState[Double](
+      new ValueStateDescriptor[Double]("ema100", classOf[Double], 0.0)
+    )
+    val prevEMA38 = ema38State.value()
+    val prevEMA100 = ema100State.value()
 
     // Smoothing factors
     val alpha38 = 2.0 / (1 + 38)
@@ -62,7 +49,7 @@ class EMACalculator
         symbol = key,
         ema38 = ema38,
         ema100 = ema100,
-        tradeTimestamp = input.last.tradeTimestamp
+        tradeTimestamp = elements.last.tradeTimestamp
       )
     )
   }

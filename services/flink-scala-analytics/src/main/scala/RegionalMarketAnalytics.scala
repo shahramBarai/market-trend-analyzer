@@ -144,7 +144,7 @@ object RegionalMarketAnalytics {
     val emaStream = FinancialTickStream
       .keyBy(_.id)
       .window(TumblingEventTimeWindows.of(windowSize, windowOffset))
-      .apply(new EMACalculator)
+      .process(new EMACalculator)
 
     // Kafka producer properties for EMAs
     val emaProducerProps = new java.util.Properties()
