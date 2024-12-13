@@ -47,36 +47,29 @@ docker compose up -d
 check_success
 echo "All services started."
 
-# Run the Flink job in background
-echo "Running Flink job..."
-docker exec flink-jobmanager bash -c " \
-flink run -d /opt/flink/usrlib/scala-2.12/flink-scala-analytics-assembly-0.1.0-SNAPSHOT.jar \
---region FR \
---inputTopic FR-ticks \
---outputTopicEMA FR-ema \
---outputTopicBuyAdvisory FR-advisories \
---parallelism 2 \
---kafkaBrokers kafka:9092"
-check_success
-docker exec flink-jobmanager bash -c " \
-flink run -d /opt/flink/usrlib/scala-2.12/flink-scala-analytics-assembly-0.1.0-SNAPSHOT.jar \
---region NL \
---inputTopic NL-ticks \
---outputTopicEMA NL-ema \
---outputTopicBuyAdvisory NL-advisories \
---parallelism 2 \
---kafkaBrokers kafka:9092"
-check_success
-docker exec flink-jobmanager bash -c " \
-flink run -d /opt/flink/usrlib/scala-2.12/flink-scala-analytics-assembly-0.1.0-SNAPSHOT.jar \
---region ETR \
---inputTopic ETR-ticks \
---outputTopicEMA ETR-ema \
---outputTopicBuyAdvisory ETR-advisories \
---parallelism 2 \
---kafkaBrokers kafka:9092"
-check_success
-echo "Flink job started."
+# Read regions from txt file
+echo "Reading regions from ./shared/regions.txt..."
+if [ ! -f ./shared/regions.txt ]; then
+    echo "Regions file not found. Exiting."
+    exit 1
+fi
+REGIONS=$(cat ./shared/regions.txt | tr ',' ' ')
+
+# Run Flink jobs dynamically for each region
+echo "Running Flink jobs..."
+for REGION in $REGIONS; do
+    echo "Setting up Flink job for region: $REGION"
+    docker exec flink-jobmanager bash -c " \
+    flink run -d /opt/flink/usrlib/scala-2.12/flink-scala-analytics-assembly-0.1.0-SNAPSHOT.jar \
+    --region $REGION \
+    --inputTopic ${REGION}-ticks \
+    --outputTopicEMA ${REGION}-ema \
+    --outputTopicBuyAdvisory ${REGION}-advisories \
+    --parallelism 2 \
+    --kafkaBrokers kafka:9092"
+    check_success
+done
+echo "Flink jobs started."
 
 echo "Development environment setup completed. To stop the services, run 'docker compose down'."
 
@@ -86,6 +79,6 @@ if [ "$1" == "--producer=docker" ]; then
     check_success
 else
     cd services/producer
-    cargo run
+    cargo build && cargo run
     check_success
 fi
