@@ -124,6 +124,7 @@ with open(filepath, newline='') as csvfile:
         os.remove(f'{shared_dir}/topics.json')
 
     # Create a topics.json file which contains the list of regions and kafka config
+    print("\nCreating topics.json...")
     with open(f'{shared_dir}/topics.json', 'w') as f:
         f.write('[')
         for i, region in enumerate(regions):
@@ -134,6 +135,20 @@ with open(filepath, newline='') as csvfile:
                 f.write(',')
         f.write(']')
         f.close()
+    print(f"Creating topics.json done!")
+
+    # Create a regions.txt file which contains the list of regions
+    print("\nCreating regions.txt...")
+    if os.path.exists(f'{shared_dir}/regions.txt'):
+        os.remove(f'{shared_dir}/regions.txt')
+    with open(f'{shared_dir}/regions.txt', 'w') as f:
+        for i, region in enumerate(regions):
+            f.write(f'{region}')
+            if i != len(regions)-1:
+                f.write(',')
+        f.close()
+    print(f"Creating regions.json done!")
+
 
     print("\nTotal number of shares:", len(files))
     print(f"Time taken to split {filepath}: {spliting_time} seconds")
